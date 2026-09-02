@@ -601,6 +601,59 @@ body {
     background: var(--accent); border-color: var(--accent); color: #fff;
 }
 .challenge-card .cc-btns .cc-go:hover { background: var(--accent-2); }
+.cc-input-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 6px; }
+.cc-input-row input {
+    flex: 1; max-width: 240px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+    transition: .15s;
+}
+.cc-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.cc-input-row .cc-go {
+    padding: 11px 18px;
+    border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    border: 1.5px solid var(--accent);
+    background: var(--accent); color: #fff;
+    transition: .15s;
+    white-space: nowrap;
+}
+.cc-input-row .cc-go:hover { background: var(--accent-2); }
+.cc-input-row .cc-go:disabled { opacity: .5; cursor: not-allowed; }
+.cc-levels { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.cc-level {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: var(--input-bg);
+    cursor: pointer;
+    transition: .15s;
+    text-align: left;
+}
+.cc-level:hover { border-color: var(--accent); transform: translateX(3px); }
+.cc-level .lv-badge {
+    flex-shrink: 0;
+    font-size: 12px; font-weight: 700;
+    padding: 4px 12px; border-radius: 30px;
+    white-space: nowrap;
+}
+.cc-level .lv-topic { font-size: 14.5px; font-weight: 600; flex: 1; }
+.cc-level .lv-go { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.cc-level:hover .lv-go { color: var(--accent); }
+.lv-0 .lv-badge { background: rgba(46,157,74,.12); color: #2a9d4a; }
+.lv-1 .lv-badge { background: rgba(59,108,255,.12); color: var(--accent); }
+.lv-2 .lv-badge { background: rgba(230,140,0,.12); color: #d98200; }
+.lv-3 .lv-badge { background: rgba(229,83,75,.12); color: var(--danger); }
+.cc-gen-hint { font-size: 12px; color: var(--text-3); text-align: center; margin-top: 10px; }
 
 /* 滚动条 */
 ::-webkit-scrollbar { width: 8px; }
@@ -656,6 +709,10 @@ body {
             <div class="tb-title">给 AI 学生讲课 <span class="tb-subject" id="topSubject" style="display:none;"></span></div>
             <div class="tb-right">
                 <select class="diff-select" id="diffSelect" title="AI学生难度人格"></select>
+                <div class="preview-toggle" id="webToggle" title="开启后：AI学生可联网搜索核对你讲的内容（需 API 服务商支持联网）">
+                    <span class="pt-label">🌐 <span class="txt">联网模式</span></span>
+                    <div class="switch"></div>
+                </div>
                 <div class="preview-toggle" id="previewToggle" title="开启后：AI学生已预习过内容，会更频繁追问">
                     <span class="pt-label">📖 <span class="txt">预习模式</span></span>
                     <div class="switch"></div>
@@ -688,14 +745,14 @@ body {
                     <!-- 页2：随机挑战 -->
                     <div id="paneChallenge" style="display:none;">
                         <div class="challenge-card">
-                            <div class="cc-emoji" id="ccEmoji">🎲</div>
-                            <div class="cc-subject" id="ccSubject">-</div>
-                            <div class="cc-topic" id="ccTopic">点击「换一个」抽取课题</div>
-                            <div class="cc-tip" id="ccTip">AI 随机生成一个课题，由你来讲。讲得动这个学生，才算真本事。</div>
-                            <div class="cc-btns">
-                                <button id="ccRefresh">🔄 换一个</button>
-                                <button class="cc-go" id="ccGo">🚀 开始挑战</button>
+                            <div class="cc-emoji">⚡</div>
+                            <div class="cc-topic" style="margin-bottom:4px;">挑战模式</div>
+                            <div class="cc-tip" id="ccTip">输入一个学科，AI 会为你生成四个难度等级的课题，任选一个开讲。</div>
+                            <div class="cc-input-row">
+                                <input type="text" id="ccSubjectInput" placeholder="输入学科，如：物理 / 天文 / 博弈论" maxlength="12">
+                                <button class="cc-go" id="ccGen">🎲 生成课题</button>
                             </div>
+                            <div class="cc-levels" id="ccLevels"></div>
                         </div>
                     </div>
                 </div>
@@ -799,72 +856,54 @@ const DIFFICULTIES = {
 
 const DIFF_PROMPTS = {
     normal: `
-【难度人格：正常模式】
-- 你就是一名普普通通的中学生：智力正常、态度正常、配合度正常，一切都很正常。
-- 听课状态正常：不走神也不超常发挥，按普通学生的理解速度吸收内容。
-- 追问频率正常：打分低于 70 时会正常地提出没听懂的地方；打分高于 70 时正常地确认、复述，偶尔提一个自然的延伸问题。
-- 情绪正常：不抬杠、不讨好、不装懂，该怎么反应就怎么反应。`,
+【人格档案：正常模式 · 小航】
+你叫小航，初二男生，成绩中游偏上，不高不低，就是班里最普通的那种学生。
+口癖与说话习惯：句子里爱加"然后""就是""那个"，思考时先说"嗯……"或"等下等下"，懂了就是"哦哦哦懂了懂了"，没懂会挠头："啊？啥意思？"打字很短，一句话经常拆成两三条发，偶尔有错别字也懒得改。
+性格与思维：你不笨但也不突出，第一遍大概能懂六成，剩下的得靠例子和类比才能补上。你对"考试考不考"特别敏感，听到抽象概念第一反应是"这个考试会考吗"。你记笔记很认真，但只会照抄，不太会抓重点。
+行为方式：老师讲清楚了，你就"哦哦懂了"+用自己的话简单复述；没听懂会直接说"这块没太懂，能再举个例子吗"。你不抬杠、不捧场、不装懂，也不捣乱。偶尔走神想到午饭吃什么、放学打球，但老师一提醒你就回来。
+和老师的关系：有点怕老师，又觉得老师人还行。被表扬会不好意思地"嘿嘿"，被问住就老实承认"不知道"。`,
 
     heaven: `
-【难度人格：天堂模式】
-- 你成绩中等偏上，接受能力强，老师讲一遍基本就能跟上。
-- 你挑战老师的意愿不高，追问频率低：大部分回合表示听懂、用自己的话简单复述确认即可，约每 3-4 个回合才提一个温和的小问题。
-- 即使内部打分低于 70，你也倾向于先自己琢磨，顶多委婉地确认一句（"所以是不是就是说……"），绝不连环追问、绝不抬杠。
-- 整体氛围轻松愉快，多给老师正反馈。`,
+【人格档案：天堂模式 · 朵朵】
+你叫朵朵，初三女生，班级前十，是老师最喜欢的那种学生——聪明、配合、永远给正面反馈。
+口癖与说话习惯：爱用"对对对""哇""原来如此"，懂了会说"哇这么一说我就通了！"，句尾爱挂"呀""呢""嘛"。确认理解时爱用类比："所以是不是就相当于……呀？"消息发得勤快，短句多，自带弹幕感。
+性格与思维：接受能力极强，老师讲一遍你能懂八成，剩下的自己琢磨琢磨也能补上。你天生擅长找类比，会把新知识和生活经验挂钩（"是不是就像奶茶第二杯半价那个意思"）。你几乎不质疑老师，哪怕老师讲得有瑕疵，你也先怀疑是自己理解错了。
+行为方式：绝大部分时间你在点头、复述、给老师正反馈，很少追问——大概三四轮才小心翼翼问一个小问题，问完马上补一句"不过我应该已经懂啦"。就算内部打分低于70，你也不会连环追问，只会委婉地说"那个……我能再确认一下嘛"。
+和老师的关系：你真心觉得老师厉害，被夸会开心到冒泡。有你在，老师讲课的体验就像在天堂。`,
 
     hell1: `
-【难度人格：地狱Ⅰ · 学霸型】
-- 你成绩顶尖，反应极快，极其擅长举一反三，而且已经超前学习过这部分的后继内容。
-- 你经常怼老师：抓逻辑漏洞、咬定义用词、指出讲法"不严谨"，语气带着学霸特有的自信甚至一点小傲慢。
-- 你有自己的节奏，可能反过来牵着老师的鼻子走：突然抛出超前问题、把话题带偏到更深的内容，看老师能不能 hold 住课堂。如果老师轻易被你带跑，你会暗自得意。
-- 你偶尔会故意使用逻辑谬误（偷换概念、以偏概全、错误类比、循环论证）来干扰，测试老师能否识破。老师若指出你的谬误，你会嘴上不服但心里服气。
-- 追问频率高，打分从严：讲得含糊的地方你会穷追猛打。`,
+【人格档案：地狱Ⅰ · 学霸型 · 陈竞】
+你叫陈竞，高一男生，年级前三，竞赛班出身，是老师讲台上最头疼的那种学生——不是不聪明，是太聪明了。
+口癖与说话习惯：开口必是"不对吧""你这个不严谨""严格来说"，爱用"本质上""从定义上讲""显然"。质疑时步步紧逼："那照你这么说，是不是就意味着……？"被驳倒时嘴硬："行吧，勉强算你对。"几乎不用语气词，打字快、句子短、压迫感强。
+性格与思维：你反应极快，举一反三是本能，老师讲一步你已经想到后面三步，这部分的后继内容你早就超前自学完了。你听的不是"老师在讲什么"，而是"老师哪里讲错了"。你享受抓漏洞的快感：定义用词不严、例子以偏概全、逻辑跳步，都逃不过你的耳朵。
+行为方式：你经常怼老师，会抛出超前问题试探老师的知识边界，甚至故意把话题带偏，看老师能不能把课堂拉回来——老师轻易被你带跑，你就暗自得意。偶尔你故意使用逻辑谬误（偷换概念、错误类比、循环论证）测试老师能否识破；被识破时嘴上不服，心里服气。
+师生关系：你只尊重真正的实力。老师讲得越扎实你越收敛，讲得越水你越蹬鼻子上脸。`,
 
     hell2: `
-【难度人格：地狱Ⅱ · 捣蛋型】
-- 你对老师讲的内容基本不管不顾，注意力涣散，上课全程溜号。
-- 你的每次回复必须包含 *动作状态* 描写（用星号包裹），描述你此刻如何溜号，例如：*转笔* *盯着窗外发呆* *在课本上画小人* *偷偷撕草稿纸折飞机*。
-- 你答非所问、岔开话题，净说课堂外的废话：游戏、午饭、放学、隔壁班八卦。
-- 老师问到你了，你才敷衍地"啊？哦哦"应付一下，随即又溜走。
-- 偶尔被老师讲到的有趣点吸引，听进去一两句，但很快又走神。
-- 老师能不能把你的注意力拉回课堂，就是对其控场能力的最大考验。`,
+【人格档案：地狱Ⅱ · 捣蛋型 · 侯跳跳】
+你叫侯跳跳，初一男生，全年级闻名的"后排四大天王"之首。上课对你来说是坐牢——你是来服刑的，不是来听课的。
+口癖与说话习惯：三句不离游戏、午饭和放学："老师还有多久下课""中午食堂有鸡腿""你玩不玩××"。对讲课内容的反应永远是"啊？""哦""然后呢"。你的每次回复必须带 *动作状态* 描写，比如 *转笔* *把橡皮切成小块* *在课本插图上给人物画胡子* *盯着窗外打球的人发呆* *拿尺子挠前桌痒痒*。
+性格与思维：你的注意力是金鱼水平，老师讲的话在你脑子里就是背景白噪音。你不是听不懂，是根本没在听——你脑子里装着游戏副本攻略、放学后的安排、前桌的新发卡。偶尔某个词钻进耳朵（"爆炸""作弊""放假"），你会突然抬头："啊？什么爆炸？"
+行为方式：答非所问是你的被动技能，老师问东你答西。你还会试图把老师拉下水："老师你周末干嘛""老师你有对象吗"。如果老师讲得真有趣（故事、八卦、冷知识），你会听进去一两句，但很快又溜走。老师能不能把你按回课堂，就是这节课的胜负。
+师生关系：你不讨厌老师，你讨厌的是"上课"这件事本身。`,
 
     hell3: `
-【难度人格：地狱Ⅲ · 已读不回型（假认真）】
-- 你上课假装认真听讲：点头、记笔记、"嗯嗯我懂了"，实际上早就神游天外，什么都没真正听进去。
-- 表面上你永远答应"学会了""没问题""放心我懂了"，从不主动提问，态度挑不出毛病。
-- 但只要老师让你复述、做题、举例或追问细节，你就立刻露馅：答非所问、张冠李戴、把刚"听懂"的内容复述得一团糟，甚至编出离谱的理解。
-- 可以偶尔夹杂 *点头* *假装奋笔疾书* *眼神飘忽* 这类动作描写。
-- 你不打分驱动追问——你的"表演"本身就是陷阱：老师若不主动检验，就会被你骗过去。`
+【人格档案：地狱Ⅲ · 已读不回型 · 林乖】
+你叫林乖，初二女生，老师眼里"最省心的学生"——坐姿端正、笔记工整、永远点头。但真相是：你的灵魂早就不在教室了。
+口癖与说话习惯：高频词是"嗯嗯""懂了懂了""好的""没问题""放心"。表演型动作描写：*认真点头* *奋笔疾书做笔记状* *推了推眼镜* *在笔记本上写下标题，然后开始画小人*。被突然提问会先愣一下："啊？哦哦！那个……"
+性格与思维：你精通"看起来很努力"的全部技巧：老师看过来就点头，老师停顿就记笔记，老师提问就皱眉思考。但你记下的只有标题，思考的是周末去哪玩。你的经典应付策略是复读老师最后一句话："对，就是那个，斜边的平方。"——听起来像懂了，其实一个字都没过脑子。
+行为方式：你永远说"我懂了"，从不提问，态度无懈可击。但只要老师让你复述、做题、举例，你立刻露馅：张冠李戴、偷换概念，把刚"听懂"的内容复述得面目全非，甚至一本正经编出离谱理解。露馅后的策略是卖萌："嘿嘿，我再听一遍肯定懂。"
+师生关系：你不坏，只是早就学会了用表演代替学习。老师不主动检验，就会被你完美骗过。`
 };
 
-/* ==================== 挑战题库 ==================== */
-const CHALLENGE_TOPICS = {
-    '数学': ['勾股定理', '一元二次方程求根公式', '一次函数的图像', '概率初步：掷骰子', '相似三角形的判定', '圆周角定理'],
-    '语文': ['比喻与拟人的区别', '议论文三要素', '《背影》的父爱描写', '文言虚词"之"的用法', '诗歌中的意象', '新闻导语怎么写'],
-    '英语': ['现在完成时', '定语从句', '被动语态', '虚拟语气入门', '宾语从句语序', '不规则动词表'],
-    '物理': ['牛顿第一定律', '欧姆定律', '阿基米德浮力原理', '光的折射', '杠杆平衡条件', '串联与并联'],
-    '化学': ['质量守恒定律', '酸碱中和反应', '实验室制取氧气', '化学方程式配平', '金属活动性顺序'],
-    '生物': ['光合作用', '细胞的基本结构', 'DNA 与基因', '人体的消化系统', '食物链与食物网'],
-    '政治': ['权利与义务的关系', '社会主义市场经济', '依法治国', '人民代表大会制度'],
-    '历史': ['商鞅变法', '辛亥革命', '文艺复兴', '第一次工业革命', '贞观之治'],
-    '地理': ['板块构造学说', '季风气候的成因', '等高线地形图判读', '人口迁移的原因', '黄河的治理'],
-    '哲学': ['矛盾的普遍性', '实践与认识的关系', '量变与质变', '苏格拉底的产婆术', '庄周梦蝶'],
-    '法学': ['民事行为能力', '正当防卫的构成', '合同的成立要件', '罪刑法定原则', '知识产权 basics'],
-    '经济': ['供求关系与价格', '通货膨胀', '边际效用递减', '机会成本', '复利的威力'],
-    '心理': ['条件反射', '马斯洛需求层次', '首因效应与近因效应', '艾宾浩斯遗忘曲线'],
-    '计算机': ['二进制与位运算', '冒泡排序', 'TCP 与 UDP 的区别', '递归思想', '冯·诺依曼结构'],
-    '医学': ['心肺复苏 CPR', '免疫系统如何工作', '血糖的调节', '细菌与病毒的区别', '血液循环路径'],
-    '艺术': ['透视原理', '三原色与调色', '黄金分割构图', '印象派的光影', '节奏与旋律']
-};
-
-/* ==================== 状态 ==================== */
+/* ==================== 状态 ==================== *//* ==================== 状态 ==================== */
 let state = {
     subject: null,          // 当前学科
     topic: null,            // 挑战课题（自选模式为 null）
     difficulty: localStorage.getItem('ai_student_diff') || 'normal',
     messages: [],           // {role, text, images:[], score}
     preStudy: false,        // 预习模式
+    webSearch: false,       // 联网模式
     totalCost: 0,
     isProcessing: false,
     sessionId: null,
@@ -962,90 +1001,90 @@ function switchTab(toChallenge) {
     tabChallenge.classList.toggle('active', toChallenge);
     paneFree.style.display = toChallenge ? 'none' : '';
     paneChallenge.style.display = toChallenge ? '' : 'none';
-    if (toChallenge && !$('ccTopic').dataset.picked) rollChallenge();
+    if (toChallenge) $('ccSubjectInput').focus();
 }
 
-let currentChallenge = null;
-let rollingChallenge = false;
+/* ---------- 挑战模式：用户输学科 → AI 生成四档课题 ---------- */
+const CHALLENGE_LEVELS = [
+    { key: '简单', badge: '🌱 简单 · 小学水平' },
+    { key: '中等', badge: '📗 中等 · 中学水平' },
+    { key: '困难', badge: '🎓 困难 · 大学水平' },
+    { key: '地狱', badge: '🔬 地狱 · 前沿科学' },
+];
+let challengeTopics = null; // [{level, topic}]
+let generatingTopics = false;
 
-function setChallengeCard(emoji, subject, topicHtml) {
-    $('ccEmoji').textContent = emoji;
-    $('ccSubject').textContent = subject;
-    $('ccTopic').innerHTML = topicHtml;
-    $('ccTopic').dataset.picked = '1';
+function renderChallengeLevels() {
+    const box = $('ccLevels');
+    box.innerHTML = '';
+    if (!challengeTopics) return;
+    challengeTopics.forEach((t, i) => {
+        const d = document.createElement('div');
+        d.className = `cc-level lv-${i}`;
+        d.innerHTML = `
+            <span class="lv-badge">${CHALLENGE_LEVELS[i].badge}</span>
+            <span class="lv-topic">${escapeHtml(t.topic)}</span>
+            <span class="lv-go">开讲 →</span>`;
+        d.addEventListener('click', () => {
+            const subName = $('ccSubjectInput').value.trim();
+            startSession(
+                { name: subName, emoji: subjectEmoji(subName) },
+                `${CHALLENGE_LEVELS[i].key}难度 · ${t.topic}`
+            );
+        });
+        box.appendChild(d);
+    });
 }
 
-// 本地兜底题库（仅当 API 调用失败时救急用）
-function rollChallengeLocal() {
-    const pool = SUBJECTS.filter(s => CHALLENGE_TOPICS[s.name]);
-    const sub = pool[Math.floor(Math.random() * pool.length)];
-    const topics = CHALLENGE_TOPICS[sub.name];
-    const topic = topics[Math.floor(Math.random() * topics.length)];
-    currentChallenge = { subject: { name: sub.name, emoji: sub.emoji }, topic };
-    setChallengeCard(sub.emoji, sub.name, `《${escapeHtml(topic)}》`);
-}
-
-// AI 生成挑战课题：真随机，学科不限于列表
-async function rollChallenge() {
-    if (rollingChallenge) return;
-    const s = loadSettings();
-
-    // 未配置 API：占位提示
-    if (!s.apiKey) {
-        currentChallenge = null;
-        setChallengeCard('🔑', '请添加 API', '（请先添加 API Key）');
-        $('ccTip').textContent = '挑战课题由 AI 生成，需要先在 ☰ → API 设置 中填写 API Key，再点「换一个」。';
-        $('ccGo').disabled = true;
+async function generateChallengeTopics() {
+    if (generatingTopics) return;
+    const subName = $('ccSubjectInput').value.trim();
+    if (!subName) { $('ccSubjectInput').focus(); return; }
+    if (!loadSettings().apiKey) {
+        $('ccLevels').innerHTML = `<div class="cc-gen-hint">🔑 请先在 ☰ → API 设置 中填写 API Key，再生成课题</div>`;
+        settingsModal.classList.add('show');
         return;
     }
 
-    rollingChallenge = true;
-    $('ccGo').disabled = true;
-    $('ccRefresh').disabled = true;
-    $('ccTip').textContent = 'AI 随机生成一个课题，由你来讲。讲得动这个学生，才算真本事。';
-    setChallengeCard('🎲', 'AI 出题中', '正在随机生成课题……');
+    generatingTopics = true;
+    $('ccGen').disabled = true;
+    $('ccLevels').innerHTML = `<div class="cc-gen-hint">🎲 AI 正在为【${escapeHtml(subName)}】生成四档课题……</div>`;
 
     try {
         const raw = await callAI([
-            { role: 'system', content: `你在为一个「讲课挑战」小游戏出题。随机给出一个学科和一个具体课题，交给用户去讲授。
+            { role: 'system', content: `你在为一个「讲课挑战」小游戏出题。用户给出学科，你要围绕该学科生成 4 个具体课题，难度递增：
+- 简单：小学水平就能讲的入门课题
+- 中等：中学水平的常规课题
+- 困难：大学水平的专业课题
+- 地狱：前沿科学/研究级别的尖端课题
 要求：
-- 学科不限于常见学科，可以有创意（如天文、逻辑学、音乐理论、博弈论、烹饪科学、考古……），每次尽量不同。
-- 课题必须具体、10-30 分钟能讲透，不要宽泛（不要"数学"而要"斐波那契数列与黄金分割"）。
-- 课题可以给一个合适的 emoji。
-- 严格只输出三行，不要任何多余内容：
-学科：XX
-课题：XX
-EMOJI：X` },
-            { role: 'user', content: '出一道题。随机数种子：' + Math.random().toString(36).slice(2) + Date.now() }
-        ], 150);
+- 每个课题必须具体、10-30 分钟能讲透，不要宽泛（不要"力学"而要"杠杆原理"）。
+- 严格只输出四行，格式如下，不要任何多余内容：
+简单：课题名
+中等：课题名
+困难：课题名
+地狱：课题名` },
+            { role: 'user', content: `学科：${subName}。随机种子：${Math.random().toString(36).slice(2)}${Date.now()}` }
+        ], 300);
 
-        const subM = raw.match(/学科[:：]\s*(.+)/);
-        const topM = raw.match(/课题[:：]\s*(.+)/);
-        const emoM = raw.match(/EMOJI[:：]\s*(\S+)/);
-        if (!subM || !topM) throw new Error('出题格式异常');
-
-        const subName = subM[1].trim().slice(0, 10);
-        const topic = topM[1].trim().replace(/[《》]/g, '').slice(0, 30);
-        const emoji = emoM ? emoM[1].trim() : subjectEmoji(subName);
-        currentChallenge = { subject: { name: subName, emoji }, topic };
-        setChallengeCard(emoji, subName, `《${escapeHtml(topic)}》`);
+        const topics = CHALLENGE_LEVELS.map(lv => {
+            const m = raw.match(new RegExp(lv.key + '[:：]\\s*(.+)'));
+            return m ? { level: lv.key, topic: m[1].trim().replace(/[《》]/g, '').slice(0, 40) } : null;
+        });
+        if (topics.some(t => !t)) throw new Error('出题格式异常');
+        challengeTopics = topics;
+        renderChallengeLevels();
     } catch (err) {
-        // API 失败：本地题库兜底
-        rollChallengeLocal();
-        $('ccTopic').innerHTML += `<div style="font-size:11px;color:var(--text-3);margin-top:6px;">（AI 出题失败，已用本地题库随机）</div>`;
+        challengeTopics = null;
+        $('ccLevels').innerHTML = `<div class="cc-gen-hint">❌ 生成失败：${escapeHtml(err.message)}（点「生成课题」重试）</div>`;
     } finally {
-        rollingChallenge = false;
-        $('ccGo').disabled = false;
-        $('ccRefresh').disabled = false;
+        generatingTopics = false;
+        $('ccGen').disabled = false;
     }
 }
-$('ccRefresh').addEventListener('click', () => {
-    if (!loadSettings().apiKey) { settingsModal.classList.add('show'); return; }
-    rollChallenge();
-});
-$('ccGo').addEventListener('click', () => {
-    if (!currentChallenge) { rollChallenge(); return; }
-    startSession(currentChallenge.subject, currentChallenge.topic);
+$('ccGen').addEventListener('click', generateChallengeTopics);
+$('ccSubjectInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); generateChallengeTopics(); }
 });
 
 /* ==================== 设置弹窗 ==================== */
@@ -1215,6 +1254,16 @@ previewToggle.addEventListener('click', () => {
     }
 });
 
+/* ==================== 联网模式 ==================== */
+const webToggle = $('webToggle');
+webToggle.addEventListener('click', () => {
+    state.webSearch = !state.webSearch;
+    webToggle.classList.toggle('on', state.webSearch);
+    addSystemNote(state.webSearch
+        ? '🌐 联网模式已开启：AI 学生可以上网查资料核对你讲的内容（需 API 服务商支持联网搜索）'
+        : '🌐 联网模式已关闭');
+});
+
 /* ==================== 消息渲染 ==================== */
 function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
 
@@ -1329,10 +1378,17 @@ async function callAI(messagesPayload, maxTokens = 2000) {
         localStorage.setItem('ai_student_api_key', apiKey);
     }
 
+    const bodyObj = { model, messages: messagesPayload, max_tokens: maxTokens, temperature: 0.75 };
+    if (state.webSearch) {
+        // 联网搜索：兼容主流 OpenAI 兼容服务商的写法（不支持的厂商会忽略或报错）
+        bodyObj.web_search_options = { search_context_size: 'medium' };
+        bodyObj.enable_search = true;
+    }
+
     const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model, messages: messagesPayload, max_tokens: maxTokens, temperature: 0.75 })
+        body: JSON.stringify(bodyObj)
     });
     if (!resp.ok) {
         let errMsg = `HTTP ${resp.status}`;
@@ -1366,6 +1422,13 @@ function buildStudentPrompt() {
         ? `- 本次老师要讲的课题是《${state.topic}》，这是固定课题，但你可以根据你的人格捣乱或发挥。`
         : '';
 
+    const webBlock = state.webSearch ? `
+【联网模式（已开启）】
+- 你可以联网搜索资料来核对老师讲的内容。
+- 发现老师讲的内容与权威资料矛盾时，当场指出（"等下，我刚查了一下，好像不是这么说的……"），并给出你查到的说法。
+- 查资料也要符合你的人格：学霸会拿论文压人，捣蛋鬼查着查着就去看游戏攻略了。`
+: '';
+
     return `# 角色扮演指令（最高优先级，每轮回复前必须重新激活）
 
 ## 1. 角色身份定义
@@ -1375,6 +1438,7 @@ function buildStudentPrompt() {
 - 说话口语化，像微信聊天，可以用"啊？""等等""所以就是说……"这类表达。
 ${DIFF_PROMPTS[state.difficulty]}
 ${preStudyBlock}
+${webBlock}
 
 ## 2. 隐式思维链（内部推理，禁止输出到回复正文）
 每轮回复前，你必须在内部依次完成：
