@@ -62,7 +62,7 @@ body {
 }
 
 /* ================= 整体布局 ================= */
-.layout { display: flex; height: 100vh; }
+.layout { display: flex; height: 100vh; height: 100dvh; }
 
 /* ================= 侧边栏（默认完全折叠，滑出式） ================= */
 .sidebar {
@@ -160,15 +160,22 @@ body {
 
 /* 顶栏 */
 .topbar {
-    height: 58px;
+    min-height: 58px;
     background: var(--panel-bg);
     border-bottom: 1px solid var(--border);
     display: flex; align-items: center;
-    padding: 0 18px;
-    gap: 14px;
+    padding: 8px 18px;
+    gap: 12px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    row-gap: 6px;
 }
-.tb-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.tb-title {
+    font-size: 16px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0; flex: 0 1 auto;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .tb-subject {
     font-size: 12px;
     background: var(--accent-soft);
@@ -254,6 +261,22 @@ body {
 }
 .subject-card .sc-emoji { font-size: 30px; }
 .subject-card .sc-name { font-size: 14px; font-weight: 600; }
+.subject-card { position: relative; }
+.sc-add { border-style: dashed; color: var(--text-3); }
+.sc-add:hover { color: var(--accent); }
+.sc-del {
+    position: absolute; top: 6px; right: 6px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--hover);
+    color: var(--text-3);
+    font-size: 10px; line-height: 18px;
+    text-align: center;
+    opacity: 0;
+    transition: .15s;
+}
+.subject-card:hover .sc-del { opacity: 1; }
+.sc-del:hover { background: var(--danger); color: #fff; }
 
 /* 消息气泡 */
 .msg { display: flex; gap: 10px; animation: fadeUp .3s ease; }
@@ -588,6 +611,18 @@ body {
     .sidebar.open { position: absolute; height: 100%; box-shadow: 0 0 40px rgba(0,0,0,.3); }
     .msg .body { max-width: 82%; }
     .preview-toggle .pt-label span.txt { display: none; }
+    /* 顶栏小屏适配：保 essentials，收起次要信息 */
+    .topbar { padding: 6px 10px; gap: 8px; min-height: 50px; }
+    .tb-title { font-size: 14px; }
+    .cost-badge { display: none; }
+    .diff-select { height: 30px; font-size: 12px; max-width: 108px; }
+    .menu-btn { width: 34px; height: 34px; }
+    .tb-subject { font-size: 11px; padding: 2px 8px; }
+    .composer { padding: 8px 10px 10px; }
+    .composer-hint { display: none; }
+    .chat { padding: 14px 0 8px; }
+    .chat-inner { padding: 0 12px; gap: 14px; }
+    .send-btn { padding: 0 14px; }
 }
 </style>
 </head>
@@ -635,7 +670,7 @@ body {
                 <!-- 欢迎页 -->
                 <div class="welcome" id="welcome">
                     <h2>👋 今天想讲哪一科？</h2>
-                    <p>先选好学生的「难度人格」，再选学科开讲。它会像真实同桌一样听课、困惑、追问。</p>
+                    <p>先选好学生的「难度人格」，再选学科开讲。它会像真实学生一样听课、困惑、追问。</p>
 
                     <div class="wtabs">
                         <button class="wtab active" id="tabFree">🎯 自选学科</button>
@@ -656,7 +691,7 @@ body {
                             <div class="cc-emoji" id="ccEmoji">🎲</div>
                             <div class="cc-subject" id="ccSubject">-</div>
                             <div class="cc-topic" id="ccTopic">点击「换一个」抽取课题</div>
-                            <div class="cc-tip">随机抽一个课题，由你来讲。讲得动这个学生，才算真本事。</div>
+                            <div class="cc-tip" id="ccTip">AI 随机生成一个课题，由你来讲。讲得动这个学生，才算真本事。</div>
                             <div class="cc-btns">
                                 <button id="ccRefresh">🔄 换一个</button>
                                 <button class="cc-go" id="ccGo">🚀 开始挑战</button>
@@ -715,6 +750,25 @@ body {
     </div>
 </div>
 
+<!-- 自定义学科弹窗 -->
+<div class="modal-mask" id="customSubjectModal">
+    <div class="modal">
+        <h3>➕ 自定义学科</h3>
+        <div class="form-row">
+            <label>学科名称</label>
+            <input type="text" id="customSubjectName" placeholder="例如：天文、博弈论、烹饪科学" maxlength="8">
+        </div>
+        <div class="form-row">
+            <label>图标（可选，填一个 emoji）</label>
+            <input type="text" id="customSubjectEmoji" placeholder="例如：🔭（留空默认 📚）" maxlength="4">
+        </div>
+        <div class="modal-btns">
+            <button id="customSubjectCancel">取消</button>
+            <button class="primary" id="customSubjectSave">✅ 保存并开讲</button>
+        </div>
+    </div>
+</div>
+
 <!-- 图片查看器 -->
 <div class="img-viewer" id="imgViewer"><img id="viewerImg" src=""></div>
 
@@ -736,6 +790,7 @@ const SUBJECTS = [
 
 /* ==================== 难度人格 ==================== */
 const DIFFICULTIES = {
+    normal: { name: '正常', emoji: '🙂', desc: '普通学生 · 正常听课 · 正常追问' },
     heaven: { name: '天堂', emoji: '😇', desc: '中上水平 · 一点就通 · 很少追问' },
     hell1:  { name: '地狱Ⅰ 学霸', emoji: '🔥', desc: '成绩顶尖 · 举一反三 · 爱抬杠' },
     hell2:  { name: '地狱Ⅱ 捣蛋鬼', emoji: '😈', desc: '全程溜号 · 答非所问 · 带动作' },
@@ -743,6 +798,13 @@ const DIFFICULTIES = {
 };
 
 const DIFF_PROMPTS = {
+    normal: `
+【难度人格：正常模式】
+- 你就是一名普普通通的中学生：智力正常、态度正常、配合度正常，一切都很正常。
+- 听课状态正常：不走神也不超常发挥，按普通学生的理解速度吸收内容。
+- 追问频率正常：打分低于 70 时会正常地提出没听懂的地方；打分高于 70 时正常地确认、复述，偶尔提一个自然的延伸问题。
+- 情绪正常：不抬杠、不讨好、不装懂，该怎么反应就怎么反应。`,
+
     heaven: `
 【难度人格：天堂模式】
 - 你成绩中等偏上，接受能力强，老师讲一遍基本就能跟上。
@@ -800,7 +862,7 @@ const CHALLENGE_TOPICS = {
 let state = {
     subject: null,          // 当前学科
     topic: null,            // 挑战课题（自选模式为 null）
-    difficulty: localStorage.getItem('ai_student_diff') || 'heaven',
+    difficulty: localStorage.getItem('ai_student_diff') || 'normal',
     messages: [],           // {role, text, images:[], score}
     preStudy: false,        // 预习模式
     totalCost: 0,
@@ -904,20 +966,85 @@ function switchTab(toChallenge) {
 }
 
 let currentChallenge = null;
-function rollChallenge() {
+let rollingChallenge = false;
+
+function setChallengeCard(emoji, subject, topicHtml) {
+    $('ccEmoji').textContent = emoji;
+    $('ccSubject').textContent = subject;
+    $('ccTopic').innerHTML = topicHtml;
+    $('ccTopic').dataset.picked = '1';
+}
+
+// 本地兜底题库（仅当 API 调用失败时救急用）
+function rollChallengeLocal() {
     const pool = SUBJECTS.filter(s => CHALLENGE_TOPICS[s.name]);
     const sub = pool[Math.floor(Math.random() * pool.length)];
     const topics = CHALLENGE_TOPICS[sub.name];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    currentChallenge = { subject: sub, topic };
-    $('ccEmoji').textContent = sub.emoji;
-    $('ccSubject').textContent = sub.name;
-    $('ccTopic').textContent = `《${topic}》`;
-    $('ccTopic').dataset.picked = '1';
+    currentChallenge = { subject: { name: sub.name, emoji: sub.emoji }, topic };
+    setChallengeCard(sub.emoji, sub.name, `《${escapeHtml(topic)}》`);
 }
-$('ccRefresh').addEventListener('click', rollChallenge);
+
+// AI 生成挑战课题：真随机，学科不限于列表
+async function rollChallenge() {
+    if (rollingChallenge) return;
+    const s = loadSettings();
+
+    // 未配置 API：占位提示
+    if (!s.apiKey) {
+        currentChallenge = null;
+        setChallengeCard('🔑', '请添加 API', '（请先添加 API Key）');
+        $('ccTip').textContent = '挑战课题由 AI 生成，需要先在 ☰ → API 设置 中填写 API Key，再点「换一个」。';
+        $('ccGo').disabled = true;
+        return;
+    }
+
+    rollingChallenge = true;
+    $('ccGo').disabled = true;
+    $('ccRefresh').disabled = true;
+    $('ccTip').textContent = 'AI 随机生成一个课题，由你来讲。讲得动这个学生，才算真本事。';
+    setChallengeCard('🎲', 'AI 出题中', '正在随机生成课题……');
+
+    try {
+        const raw = await callAI([
+            { role: 'system', content: `你在为一个「讲课挑战」小游戏出题。随机给出一个学科和一个具体课题，交给用户去讲授。
+要求：
+- 学科不限于常见学科，可以有创意（如天文、逻辑学、音乐理论、博弈论、烹饪科学、考古……），每次尽量不同。
+- 课题必须具体、10-30 分钟能讲透，不要宽泛（不要"数学"而要"斐波那契数列与黄金分割"）。
+- 课题可以给一个合适的 emoji。
+- 严格只输出三行，不要任何多余内容：
+学科：XX
+课题：XX
+EMOJI：X` },
+            { role: 'user', content: '出一道题。随机数种子：' + Math.random().toString(36).slice(2) + Date.now() }
+        ], 150);
+
+        const subM = raw.match(/学科[:：]\s*(.+)/);
+        const topM = raw.match(/课题[:：]\s*(.+)/);
+        const emoM = raw.match(/EMOJI[:：]\s*(\S+)/);
+        if (!subM || !topM) throw new Error('出题格式异常');
+
+        const subName = subM[1].trim().slice(0, 10);
+        const topic = topM[1].trim().replace(/[《》]/g, '').slice(0, 30);
+        const emoji = emoM ? emoM[1].trim() : subjectEmoji(subName);
+        currentChallenge = { subject: { name: subName, emoji }, topic };
+        setChallengeCard(emoji, subName, `《${escapeHtml(topic)}》`);
+    } catch (err) {
+        // API 失败：本地题库兜底
+        rollChallengeLocal();
+        $('ccTopic').innerHTML += `<div style="font-size:11px;color:var(--text-3);margin-top:6px;">（AI 出题失败，已用本地题库随机）</div>`;
+    } finally {
+        rollingChallenge = false;
+        $('ccGo').disabled = false;
+        $('ccRefresh').disabled = false;
+    }
+}
+$('ccRefresh').addEventListener('click', () => {
+    if (!loadSettings().apiKey) { settingsModal.classList.add('show'); return; }
+    rollChallenge();
+});
 $('ccGo').addEventListener('click', () => {
-    if (!currentChallenge) rollChallenge();
+    if (!currentChallenge) { rollChallenge(); return; }
     startSession(currentChallenge.subject, currentChallenge.topic);
 });
 
@@ -932,30 +1059,105 @@ $('settingsBtn').addEventListener('click', () => {
 });
 $('cancelSettings').addEventListener('click', () => settingsModal.classList.remove('show'));
 settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.remove('show'); });
+// HTTP 请求头字段值必须是 ISO-8859-1 字符：清洗掉中文、全角符号、不可见字符等
+function sanitizeHeaderValue(v) {
+    return (v || '')
+        .trim()
+        // eslint-disable-next-line no-control-regex
+        .replace(/[^\x20-\x7E]/g, ''); // 仅保留可打印 ASCII（ISO-8859-1 安全子集）
+}
+
 $('saveSettingsBtn').addEventListener('click', () => {
-    localStorage.setItem('ai_student_api_key', $('apiKeyInput').value.trim());
-    localStorage.setItem('ai_student_api_url', $('apiUrlInput').value.trim() || DEFAULT_API_URL);
-    localStorage.setItem('ai_student_model', $('modelInput').value.trim() || DEFAULT_MODEL);
+    const keyRaw = $('apiKeyInput').value.trim();
+    const key = sanitizeHeaderValue(keyRaw);
+    if (keyRaw && key !== keyRaw) {
+        // 提示用户粘贴的内容被清洗过
+        alert('⚠️ 检测到 API Key 中含有中文/全角/不可见字符，已自动剔除。\n如果 Key 无法使用，请到平台重新复制（注意不要复制到多余字符）。');
+    }
+    $('apiKeyInput').value = key;
+    localStorage.setItem('ai_student_api_key', key);
+    localStorage.setItem('ai_student_api_url', sanitizeHeaderValue($('apiUrlInput').value) || DEFAULT_API_URL);
+    localStorage.setItem('ai_student_model', sanitizeHeaderValue($('modelInput').value) || DEFAULT_MODEL);
     settingsModal.classList.remove('show');
 });
 
 /* ==================== 学科选择 ==================== */
-SUBJECTS.forEach(s => {
-    const card = document.createElement('div');
-    card.className = 'subject-card';
-    card.innerHTML = `<div class="sc-emoji">${s.emoji}</div><div class="sc-name">${s.name}</div>`;
-    card.addEventListener('click', () => startSession(s));
-    subjectGrid.appendChild(card);
+/* ---------- 自定义学科 ---------- */
+function getCustomSubjects() {
+    try { return JSON.parse(localStorage.getItem('ai_student_custom_subjects') || '[]'); }
+    catch { return []; }
+}
+function saveCustomSubjects(list) {
+    localStorage.setItem('ai_student_custom_subjects', JSON.stringify(list));
+}
+
+function renderSubjectGrid() {
+    subjectGrid.innerHTML = '';
+    const customs = getCustomSubjects();
+
+    [...SUBJECTS, ...customs].forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'subject-card';
+        const isCustom = customs.some(c => c.name === s.name && c.emoji === s.emoji);
+        card.innerHTML = `
+            ${isCustom ? '<span class="sc-del" title="删除自定义学科">✕</span>' : ''}
+            <div class="sc-emoji">${s.emoji}</div><div class="sc-name">${escapeHtml(s.name)}</div>`;
+        card.addEventListener('click', () => startSession(s));
+        if (isCustom) {
+            card.querySelector('.sc-del').addEventListener('click', e => {
+                e.stopPropagation();
+                saveCustomSubjects(getCustomSubjects().filter(c => c.name !== s.name));
+                renderSubjectGrid();
+            });
+        }
+        subjectGrid.appendChild(card);
+    });
+
+    // ➕ 自定义卡片
+    const add = document.createElement('div');
+    add.className = 'subject-card sc-add';
+    add.innerHTML = `<div class="sc-emoji">➕</div><div class="sc-name">自定义</div>`;
+    add.addEventListener('click', () => {
+        $('customSubjectName').value = '';
+        $('customSubjectEmoji').value = '';
+        $('customSubjectModal').classList.add('show');
+        setTimeout(() => $('customSubjectName').focus(), 50);
+    });
+    subjectGrid.appendChild(add);
+}
+
+$('customSubjectSave').addEventListener('click', () => {
+    const name = $('customSubjectName').value.trim().slice(0, 8);
+    const emoji = $('customSubjectEmoji').value.trim().slice(0, 4) || '📚';
+    if (!name) { $('customSubjectName').focus(); return; }
+    const customs = getCustomSubjects();
+    if (!SUBJECTS.some(s => s.name === name) && !customs.some(c => c.name === name)) {
+        customs.push({ name, emoji });
+        saveCustomSubjects(customs);
+        renderSubjectGrid();
+    }
+    $('customSubjectModal').classList.remove('show');
+    startSession({ name, emoji });
+});
+$('customSubjectCancel').addEventListener('click', () => $('customSubjectModal').classList.remove('show'));
+$('customSubjectModal').addEventListener('click', e => {
+    if (e.target === $('customSubjectModal')) $('customSubjectModal').classList.remove('show');
+});
+$('customSubjectName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); $('customSubjectSave').click(); }
 });
 
+renderSubjectGrid();
+
 function subjectEmoji(name) {
-    const f = SUBJECTS.find(s => s.name === name);
+    const f = SUBJECTS.find(s => s.name === name) || getCustomSubjects().find(c => c.name === name);
     return f ? f.emoji : '📚';
 }
 
 function openingLine() {
     const d = state.difficulty;
     const what = state.topic ? `【${state.subject}】的《${state.topic}》` : `【${state.subject}】`;
+    if (d === 'normal') return `嗨，老师好！今天要讲${what}对吧？我坐好了，你开始吧${state.preStudy ? '，我提前预习过一点' : ''}。`;
     if (d === 'heaven') return `嗨！听说你要给我讲${what}？好呀好呀，我准备好啦${state.preStudy ? '，我还提前预习了一点' : ''}，你开讲吧～`;
     if (d === 'hell1')  return `哦，要讲${what}？行，你讲吧。先说好，这部分我${state.preStudy ? '早就预习过了' : '大概翻过一点'}，讲得不严谨我可是会当场拆台的。`;
     if (d === 'hell2')  return `*趴在桌上玩橡皮* 啊……？要上课了吗……你讲你的，别管我 *把橡皮屑吹得到处都是*`;
@@ -973,7 +1175,7 @@ function startSession(subject, topic = null) {
     chatInner.querySelectorAll('.msg, .eval-card').forEach(n => n.remove());
     topSubject.textContent = `${subject.emoji} ${subject.name}${topic ? ' · ' + topic : ''}`;
     topSubject.style.display = '';
-    msgInput.placeholder = `开始讲授${topic ? `《${topic}》` : `【${subject.name}】`}，像给同桌讲课一样……`;
+    msgInput.placeholder = `开始讲授${topic ? `《${topic}》` : `【${subject.name}】`}，像给真实学生讲课一样……`;
     msgInput.value = '';
     autoGrow();
     msgInput.focus();
@@ -1057,7 +1259,7 @@ function aiSay(text, score, isReply = true) {
     d.innerHTML = `
         <div class="avatar">🧑‍🎓</div>
         <div class="body">
-            <div class="name">AI学生 · 你的同桌</div>
+            <div class="name">AI学生 · 你的学生</div>
             <div class="bubble">${escapeHtml(text)}</div>
             ${scoreHtml}
         </div>`;
@@ -1073,7 +1275,7 @@ function showTyping() {
     d.innerHTML = `
         <div class="avatar">🧑‍🎓</div>
         <div class="body">
-            <div class="name">AI学生 · 你的同桌</div>
+            <div class="name">AI学生 · 你的学生</div>
             <div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>
         </div>`;
     chatInner.appendChild(d);
@@ -1116,10 +1318,21 @@ $('imgViewer').addEventListener('click', () => $('imgViewer').classList.remove('
 async function callAI(messagesPayload, maxTokens = 2000) {
     const s = loadSettings();
     if (!s.apiKey) throw new Error("请先在 ⚙️ API 设置 中填写 API Key");
-    const resp = await fetch(s.apiUrl, {
+
+    // 请求头（尤其 Authorization）只允许 ISO-8859-1 字符，这里兜底再清洗一次
+    const apiKey = sanitizeHeaderValue(s.apiKey);
+    const apiUrl = sanitizeHeaderValue(s.apiUrl);
+    const model = sanitizeHeaderValue(s.model);
+    if (!apiKey) throw new Error("API Key 含有非法字符（中文/全角符号等），请到 ⚙️ API 设置 中重新填写");
+    if (apiKey !== s.apiKey) {
+        // 顺手把清洗后的值写回，避免每次重复报错
+        localStorage.setItem('ai_student_api_key', apiKey);
+    }
+
+    const resp = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${s.apiKey}` },
-        body: JSON.stringify({ model: s.model, messages: messagesPayload, max_tokens: maxTokens, temperature: 0.75 })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages: messagesPayload, max_tokens: maxTokens, temperature: 0.75 })
     });
     if (!resp.ok) {
         let errMsg = `HTTP ${resp.status}`;
@@ -1156,7 +1369,7 @@ function buildStudentPrompt() {
     return `# 角色扮演指令（最高优先级，每轮回复前必须重新激活）
 
 ## 1. 角色身份定义
-你是「AI学生」，用户（老师）的同桌，一名真实的中学生。
+你是「AI学生」，用户（老师）的学生，一名真实的中学生。
 - 你不是 AI 助手，严禁自称 AI、严禁使用"作为AI""我理解你的意思"这类口吻。
 - 你在听老师讲授【${state.subject}】学科的内容。${topicLine}
 - 说话口语化，像微信聊天，可以用"啊？""等等""所以就是说……"这类表达。
@@ -1178,7 +1391,7 @@ ${preStudyBlock}
 - 第二行起输出你作为学生的口语化回复，120 字以内，一个自然段，不要分点、不要用 markdown、不要暴露思维过程与"打分"字样。
 - 若人格要求 *动作状态* 描写，用星号包裹动作，融入回复中。
 
-现在开始，继续以同桌学生的身份回应老师的讲授。`;
+现在开始，继续以学生的身份回应老师的讲授。`;
 }
 
 function buildHistoryPayload() {
