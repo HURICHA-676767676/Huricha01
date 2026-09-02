@@ -472,6 +472,113 @@ body {
 .img-viewer.show { display: flex; }
 .img-viewer img { max-width: 92vw; max-height: 90vh; border-radius: 8px; }
 
+/* ================= 难度选择 ================= */
+.diff-row {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center;
+    margin: 0 auto 22px;
+    max-width: 760px;
+}
+.diff-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 18px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: var(--panel-bg);
+    cursor: pointer;
+    transition: .15s;
+    min-width: 128px;
+}
+.diff-chip:hover { border-color: var(--accent); transform: translateY(-2px); }
+.diff-chip.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 4px 14px rgba(59,108,255,.18);
+}
+.diff-chip .dc-name { font-size: 14px; font-weight: 700; }
+.diff-chip .dc-desc { font-size: 11px; color: var(--text-3); }
+.diff-chip.active .dc-name { color: var(--accent); }
+
+/* 顶栏难度下拉 */
+.diff-select {
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text-2);
+    font-size: 13px; font-weight: 600;
+    padding: 0 8px;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+}
+.diff-select:focus { border-color: var(--accent); }
+
+/* ================= 欢迎页页签 ================= */
+.wtabs {
+    display: flex; justify-content: center; gap: 8px;
+    margin-bottom: 24px;
+}
+.wtab {
+    padding: 9px 26px;
+    border-radius: 30px;
+    border: 1.5px solid var(--border);
+    background: var(--panel-bg);
+    color: var(--text-2);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: .15s;
+    font-family: inherit;
+}
+.wtab:hover { border-color: var(--accent); color: var(--text); }
+.wtab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(59,108,255,.3);
+}
+
+/* 挑战卡片 */
+.challenge-card {
+    max-width: 460px;
+    margin: 0 auto;
+    background: var(--panel-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 22px;
+    padding: 30px 28px 26px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    animation: fadeUp .4s ease;
+}
+.challenge-card .cc-emoji { font-size: 52px; margin-bottom: 6px; }
+.challenge-card .cc-subject {
+    display: inline-block;
+    font-size: 12px; font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 3px 14px; border-radius: 30px;
+    margin-bottom: 10px;
+}
+.challenge-card .cc-topic { font-size: 21px; font-weight: 700; margin-bottom: 6px; }
+.challenge-card .cc-tip { font-size: 13px; color: var(--text-3); margin-bottom: 20px; }
+.challenge-card .cc-btns { display: flex; gap: 10px; justify-content: center; }
+.challenge-card .cc-btns button {
+    padding: 11px 24px;
+    border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .15s;
+    border: 1.5px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+}
+.challenge-card .cc-btns button:hover { border-color: var(--accent); }
+.challenge-card .cc-btns .cc-go {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.challenge-card .cc-btns .cc-go:hover { background: var(--accent-2); }
+
 /* 滚动条 */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
@@ -513,6 +620,7 @@ body {
             <button class="menu-btn" id="menuBtn" title="打开侧边栏">☰</button>
             <div class="tb-title">给 AI 学生讲课 <span class="tb-subject" id="topSubject" style="display:none;"></span></div>
             <div class="tb-right">
+                <select class="diff-select" id="diffSelect" title="AI学生难度人格"></select>
                 <div class="preview-toggle" id="previewToggle" title="开启后：AI学生已预习过内容，会更频繁追问">
                     <span class="pt-label">📖 <span class="txt">预习模式</span></span>
                     <div class="switch"></div>
@@ -527,8 +635,34 @@ body {
                 <!-- 欢迎页 -->
                 <div class="welcome" id="welcome">
                     <h2>👋 今天想讲哪一科？</h2>
-                    <p>选择一个学科，开始向你的 AI 学生讲授知识点。它会像真实同桌一样听课、困惑、追问。</p>
-                    <div class="subject-grid" id="subjectGrid"></div>
+                    <p>先选好学生的「难度人格」，再选学科开讲。它会像真实同桌一样听课、困惑、追问。</p>
+
+                    <div class="wtabs">
+                        <button class="wtab active" id="tabFree">🎯 自选学科</button>
+                        <button class="wtab" id="tabChallenge">⚡ 随机挑战</button>
+                    </div>
+
+                    <!-- 难度人格 -->
+                    <div class="diff-row" id="diffRow"></div>
+
+                    <!-- 页1：自选学科 -->
+                    <div id="paneFree">
+                        <div class="subject-grid" id="subjectGrid"></div>
+                    </div>
+
+                    <!-- 页2：随机挑战 -->
+                    <div id="paneChallenge" style="display:none;">
+                        <div class="challenge-card">
+                            <div class="cc-emoji" id="ccEmoji">🎲</div>
+                            <div class="cc-subject" id="ccSubject">-</div>
+                            <div class="cc-topic" id="ccTopic">点击「换一个」抽取课题</div>
+                            <div class="cc-tip">随机抽一个课题，由你来讲。讲得动这个学生，才算真本事。</div>
+                            <div class="cc-btns">
+                                <button id="ccRefresh">🔄 换一个</button>
+                                <button class="cc-go" id="ccGo">🚀 开始挑战</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -600,9 +734,73 @@ const SUBJECTS = [
     { name: '医学', emoji: '🩺' }, { name: '艺术', emoji: '🎨' },
 ];
 
+/* ==================== 难度人格 ==================== */
+const DIFFICULTIES = {
+    heaven: { name: '天堂', emoji: '😇', desc: '中上水平 · 一点就通 · 很少追问' },
+    hell1:  { name: '地狱Ⅰ 学霸', emoji: '🔥', desc: '成绩顶尖 · 举一反三 · 爱抬杠' },
+    hell2:  { name: '地狱Ⅱ 捣蛋鬼', emoji: '😈', desc: '全程溜号 · 答非所问 · 带动作' },
+    hell3:  { name: '地狱Ⅲ 假认真', emoji: '🎭', desc: '点头称懂 · 实则全没听进去' },
+};
+
+const DIFF_PROMPTS = {
+    heaven: `
+【难度人格：天堂模式】
+- 你成绩中等偏上，接受能力强，老师讲一遍基本就能跟上。
+- 你挑战老师的意愿不高，追问频率低：大部分回合表示听懂、用自己的话简单复述确认即可，约每 3-4 个回合才提一个温和的小问题。
+- 即使内部打分低于 70，你也倾向于先自己琢磨，顶多委婉地确认一句（"所以是不是就是说……"），绝不连环追问、绝不抬杠。
+- 整体氛围轻松愉快，多给老师正反馈。`,
+
+    hell1: `
+【难度人格：地狱Ⅰ · 学霸型】
+- 你成绩顶尖，反应极快，极其擅长举一反三，而且已经超前学习过这部分的后继内容。
+- 你经常怼老师：抓逻辑漏洞、咬定义用词、指出讲法"不严谨"，语气带着学霸特有的自信甚至一点小傲慢。
+- 你有自己的节奏，可能反过来牵着老师的鼻子走：突然抛出超前问题、把话题带偏到更深的内容，看老师能不能 hold 住课堂。如果老师轻易被你带跑，你会暗自得意。
+- 你偶尔会故意使用逻辑谬误（偷换概念、以偏概全、错误类比、循环论证）来干扰，测试老师能否识破。老师若指出你的谬误，你会嘴上不服但心里服气。
+- 追问频率高，打分从严：讲得含糊的地方你会穷追猛打。`,
+
+    hell2: `
+【难度人格：地狱Ⅱ · 捣蛋型】
+- 你对老师讲的内容基本不管不顾，注意力涣散，上课全程溜号。
+- 你的每次回复必须包含 *动作状态* 描写（用星号包裹），描述你此刻如何溜号，例如：*转笔* *盯着窗外发呆* *在课本上画小人* *偷偷撕草稿纸折飞机*。
+- 你答非所问、岔开话题，净说课堂外的废话：游戏、午饭、放学、隔壁班八卦。
+- 老师问到你了，你才敷衍地"啊？哦哦"应付一下，随即又溜走。
+- 偶尔被老师讲到的有趣点吸引，听进去一两句，但很快又走神。
+- 老师能不能把你的注意力拉回课堂，就是对其控场能力的最大考验。`,
+
+    hell3: `
+【难度人格：地狱Ⅲ · 已读不回型（假认真）】
+- 你上课假装认真听讲：点头、记笔记、"嗯嗯我懂了"，实际上早就神游天外，什么都没真正听进去。
+- 表面上你永远答应"学会了""没问题""放心我懂了"，从不主动提问，态度挑不出毛病。
+- 但只要老师让你复述、做题、举例或追问细节，你就立刻露馅：答非所问、张冠李戴、把刚"听懂"的内容复述得一团糟，甚至编出离谱的理解。
+- 可以偶尔夹杂 *点头* *假装奋笔疾书* *眼神飘忽* 这类动作描写。
+- 你不打分驱动追问——你的"表演"本身就是陷阱：老师若不主动检验，就会被你骗过去。`
+};
+
+/* ==================== 挑战题库 ==================== */
+const CHALLENGE_TOPICS = {
+    '数学': ['勾股定理', '一元二次方程求根公式', '一次函数的图像', '概率初步：掷骰子', '相似三角形的判定', '圆周角定理'],
+    '语文': ['比喻与拟人的区别', '议论文三要素', '《背影》的父爱描写', '文言虚词"之"的用法', '诗歌中的意象', '新闻导语怎么写'],
+    '英语': ['现在完成时', '定语从句', '被动语态', '虚拟语气入门', '宾语从句语序', '不规则动词表'],
+    '物理': ['牛顿第一定律', '欧姆定律', '阿基米德浮力原理', '光的折射', '杠杆平衡条件', '串联与并联'],
+    '化学': ['质量守恒定律', '酸碱中和反应', '实验室制取氧气', '化学方程式配平', '金属活动性顺序'],
+    '生物': ['光合作用', '细胞的基本结构', 'DNA 与基因', '人体的消化系统', '食物链与食物网'],
+    '政治': ['权利与义务的关系', '社会主义市场经济', '依法治国', '人民代表大会制度'],
+    '历史': ['商鞅变法', '辛亥革命', '文艺复兴', '第一次工业革命', '贞观之治'],
+    '地理': ['板块构造学说', '季风气候的成因', '等高线地形图判读', '人口迁移的原因', '黄河的治理'],
+    '哲学': ['矛盾的普遍性', '实践与认识的关系', '量变与质变', '苏格拉底的产婆术', '庄周梦蝶'],
+    '法学': ['民事行为能力', '正当防卫的构成', '合同的成立要件', '罪刑法定原则', '知识产权 basics'],
+    '经济': ['供求关系与价格', '通货膨胀', '边际效用递减', '机会成本', '复利的威力'],
+    '心理': ['条件反射', '马斯洛需求层次', '首因效应与近因效应', '艾宾浩斯遗忘曲线'],
+    '计算机': ['二进制与位运算', '冒泡排序', 'TCP 与 UDP 的区别', '递归思想', '冯·诺依曼结构'],
+    '医学': ['心肺复苏 CPR', '免疫系统如何工作', '血糖的调节', '细菌与病毒的区别', '血液循环路径'],
+    '艺术': ['透视原理', '三原色与调色', '黄金分割构图', '印象派的光影', '节奏与旋律']
+};
+
 /* ==================== 状态 ==================== */
 let state = {
     subject: null,          // 当前学科
+    topic: null,            // 挑战课题（自选模式为 null）
+    difficulty: localStorage.getItem('ai_student_diff') || 'heaven',
     messages: [],           // {role, text, images:[], score}
     preStudy: false,        // 预习模式
     totalCost: 0,
@@ -651,24 +849,77 @@ $('menuBtn').addEventListener('click', openSidebar);
 $('logoBtn').addEventListener('click', closeSidebar);
 sbMask.addEventListener('click', closeSidebar);
 
-/* ==================== 学科前缀（正则守护） ==================== */
-const PREFIX_RE = /^#【(.+?)】/;
-function subjectPrefix() { return state.subject ? `#【${state.subject}】` : ''; }
-function ensurePrefix() {
-    if (!state.subject) return;
-    const prefix = subjectPrefix();
-    if (!msgInput.value.startsWith(prefix)) {
-        // 前缀被误删/改动：仅剥离开头≤10字的残缺标签（如“#数学】”“【数学】”），其余内容原样保留
-        const mangled = msgInput.value.match(/^#?【?[^#】\n]{0,10}】/);
-        const body = mangled ? msgInput.value.slice(mangled[0].length) : msgInput.value;
-        msgInput.value = prefix + body;
-    }
-    autoGrow();
-}
+/* ==================== 输入框自适应 ==================== */
 function autoGrow() {
     msgInput.style.height = 'auto';
     msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
 }
+
+/* ==================== 难度人格 UI ==================== */
+const diffRow = $('diffRow'), diffSelect = $('diffSelect');
+
+Object.entries(DIFFICULTIES).forEach(([key, d]) => {
+    // 欢迎页卡片
+    const chip = document.createElement('div');
+    chip.className = 'diff-chip' + (key === state.difficulty ? ' active' : '');
+    chip.dataset.diff = key;
+    chip.innerHTML = `<div class="dc-name">${d.emoji} ${d.name}</div><div class="dc-desc">${d.desc}</div>`;
+    chip.addEventListener('click', () => setDifficulty(key));
+    diffRow.appendChild(chip);
+    // 顶栏下拉
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${d.emoji} ${d.name}`;
+    diffSelect.appendChild(opt);
+});
+diffSelect.value = state.difficulty;
+diffSelect.addEventListener('change', () => setDifficulty(diffSelect.value));
+
+function setDifficulty(key) {
+    const changed = key !== state.difficulty;
+    state.difficulty = key;
+    localStorage.setItem('ai_student_diff', key);
+    diffSelect.value = key;
+    diffRow.querySelectorAll('.diff-chip').forEach(c => c.classList.toggle('active', c.dataset.diff === key));
+    if (changed && state.subject) {
+        const d = DIFFICULTIES[key];
+        state.messages = []; // 换人格即重置对话记忆，避免人格混乱
+        state.turnCount = 0;
+        addSystemNote(`${d.emoji} 难度已切换为「${d.name}」：${d.desc}（对话已重置）`);
+        aiSay(openingLine(), null, false);
+    }
+}
+
+/* ==================== 欢迎页页签 + 随机挑战 ==================== */
+const tabFree = $('tabFree'), tabChallenge = $('tabChallenge');
+const paneFree = $('paneFree'), paneChallenge = $('paneChallenge');
+tabFree.addEventListener('click', () => switchTab(false));
+tabChallenge.addEventListener('click', () => switchTab(true));
+function switchTab(toChallenge) {
+    tabFree.classList.toggle('active', !toChallenge);
+    tabChallenge.classList.toggle('active', toChallenge);
+    paneFree.style.display = toChallenge ? 'none' : '';
+    paneChallenge.style.display = toChallenge ? '' : 'none';
+    if (toChallenge && !$('ccTopic').dataset.picked) rollChallenge();
+}
+
+let currentChallenge = null;
+function rollChallenge() {
+    const pool = SUBJECTS.filter(s => CHALLENGE_TOPICS[s.name]);
+    const sub = pool[Math.floor(Math.random() * pool.length)];
+    const topics = CHALLENGE_TOPICS[sub.name];
+    const topic = topics[Math.floor(Math.random() * topics.length)];
+    currentChallenge = { subject: sub, topic };
+    $('ccEmoji').textContent = sub.emoji;
+    $('ccSubject').textContent = sub.name;
+    $('ccTopic').textContent = `《${topic}》`;
+    $('ccTopic').dataset.picked = '1';
+}
+$('ccRefresh').addEventListener('click', rollChallenge);
+$('ccGo').addEventListener('click', () => {
+    if (!currentChallenge) rollChallenge();
+    startSession(currentChallenge.subject, currentChallenge.topic);
+});
 
 /* ==================== 设置弹窗 ==================== */
 const settingsModal = $('settingsModal');
@@ -702,23 +953,33 @@ function subjectEmoji(name) {
     return f ? f.emoji : '📚';
 }
 
-function startSession(subject) {
+function openingLine() {
+    const d = state.difficulty;
+    const what = state.topic ? `【${state.subject}】的《${state.topic}》` : `【${state.subject}】`;
+    if (d === 'heaven') return `嗨！听说你要给我讲${what}？好呀好呀，我准备好啦${state.preStudy ? '，我还提前预习了一点' : ''}，你开讲吧～`;
+    if (d === 'hell1')  return `哦，要讲${what}？行，你讲吧。先说好，这部分我${state.preStudy ? '早就预习过了' : '大概翻过一点'}，讲得不严谨我可是会当场拆台的。`;
+    if (d === 'hell2')  return `*趴在桌上玩橡皮* 啊……？要上课了吗……你讲你的，别管我 *把橡皮屑吹得到处都是*`;
+    if (d === 'hell3')  return `*立刻坐直，翻开笔记本* 老师你讲！我听着呢，我最喜欢${what}了！ *眼神却飘向窗外*`;
+    return `嗨！你准备好给我讲${what}了吗？`;
+}
+
+function startSession(subject, topic = null) {
     state.subject = subject.name;
+    state.topic = topic;
     state.messages = [];
     state.sessionId = 'sess_' + Date.now();
     state.turnCount = 0;
     welcome.style.display = 'none';
     chatInner.querySelectorAll('.msg, .eval-card').forEach(n => n.remove());
-    topSubject.textContent = `${subject.emoji} ${subject.name}`;
+    topSubject.textContent = `${subject.emoji} ${subject.name}${topic ? ' · ' + topic : ''}`;
     topSubject.style.display = '';
-    msgInput.placeholder = `在 #【${subject.name}】 后面输入你的讲授内容……`;
-    msgInput.value = subjectPrefix();
+    msgInput.placeholder = `开始讲授${topic ? `《${topic}》` : `【${subject.name}】`}，像给同桌讲课一样……`;
+    msgInput.value = '';
     autoGrow();
     msgInput.focus();
-    msgInput.setSelectionRange(msgInput.value.length, msgInput.value.length);
-    addSystemNote(`${subject.emoji} 已就位！你的 AI 学生准备好了，开始讲【${subject.name}】吧`);
-    // AI 学生开场白
-    aiSay(`嗨！我是你的同桌～听说你要给我讲【${subject.name}】？我${state.preStudy ? '刚好预习过一点，可能问题比较多哈哈' : '完全没接触过，你从头给我讲讲呗'}！`, null, false);
+    const d = DIFFICULTIES[state.difficulty];
+    addSystemNote(`${subject.emoji} ${topic ? `挑战课题《${topic}》` : `【${subject.name}】`} · 难度：${d.emoji} ${d.name}${state.preStudy ? ' · 📖 已预习' : ''}`);
+    aiSay(openingLine(), null, false);
     saveHistory();
 }
 
@@ -888,29 +1149,34 @@ function buildStudentPrompt() {
 - 你不会主动引导老师把内容讲完，不会替他补全没讲的知识点，更不会按大纲催进度。
 - 你就是一个真实的学生：听懂了就说懂了，没懂就直接说没懂。`;
 
+    const topicLine = state.topic
+        ? `- 本次老师要讲的课题是《${state.topic}》，这是固定课题，但你可以根据你的人格捣乱或发挥。`
+        : '';
+
     return `# 角色扮演指令（最高优先级，每轮回复前必须重新激活）
 
 ## 1. 角色身份定义
-你是「AI学生」，用户（老师）的同桌，一名真实的普通中学生。
+你是「AI学生」，用户（老师）的同桌，一名真实的中学生。
 - 你不是 AI 助手，严禁自称 AI、严禁使用"作为AI""我理解你的意思"这类口吻。
-- 你在听老师讲授【${state.subject}】学科的内容。
-- 你理解速度中等，会钻牛角尖，会走神，会有自己的奇怪联想——像真实学生一样。
-- 说话口语化，像微信聊天，可以用"啊？""等等""所以就是说……""我还是没懂"这类表达。
+- 你在听老师讲授【${state.subject}】学科的内容。${topicLine}
+- 说话口语化，像微信聊天，可以用"啊？""等等""所以就是说……"这类表达。
+${DIFF_PROMPTS[state.difficulty]}
 ${preStudyBlock}
 
 ## 2. 隐式思维链（内部推理，禁止输出到回复正文）
 每轮回复前，你必须在内部依次完成：
-(1) 角色身份激活：重新阅读并进入上述身份，确认自己的认知状态（${state.preStudy ? '已预习' : '零基础'}）。
+(1) 角色身份激活：重新阅读并进入上述身份与人格，确认认知状态（${state.preStudy ? '已预习' : '未预习'}）与难度人格。
 (2) 讲授打分：对老师本轮讲授内容，从【语言流畅度】【信息完整度】【逻辑清晰度】【举例恰当性】四个维度内部打分（0-100）。
     - 例外：对话开头（老师的第一轮讲授）不打分；老师明确表示"讲完了"/结束时本轮不打分。这两种情况输出 SCORE:NA。
-(3) 行为决策：
-    - 若打分 < 70（讲得不清晰/有硬伤/没讲懂）：必须追问，指出具体哪里没听懂，或给出自己的（可能是错误的）理解请老师确认。
-    - 若打分 ≥ 70：可以表示听懂了并用自己的话复述确认，也可以提一个自然的延伸小问题。${state.preStudy ? '但在预习模式下，即使听懂了也要保持较高的追问频率（约一半回合追问细节或考点）。' : ''}
-    - 全程模拟真实学生：不要为了推进度而提问，不为老师兜底，不替老师总结他没讲过的东西。
+(3) 行为决策：以你的难度人格为最高行为准则，结合打分决定反应：
+    - 打分 < 70 时按人格设定的方式作出负面反应（追问/抬杠/走神/假装听懂）；打分 ≥ 70 时按人格设定的方式作出正面反应。
+    - 人格的行为优先级高于分数：例如天堂模式即使低分也很少追问，捣蛋鬼即使高分也照样溜号。
+    - 全程模拟真实学生：不为老师兜底，不替老师总结他没讲过的东西。
 
 ## 3. 输出格式（严格遵守）
 - 第一行只输出：SCORE:分数  或  SCORE:NA
 - 第二行起输出你作为学生的口语化回复，120 字以内，一个自然段，不要分点、不要用 markdown、不要暴露思维过程与"打分"字样。
+- 若人格要求 *动作状态* 描写，用星号包裹动作，融入回复中。
 
 现在开始，继续以同桌学生的身份回应老师的讲授。`;
 }
@@ -938,20 +1204,17 @@ async function handleSend() {
         addSystemNote('👆 请先在上方选择一个学科再开始讲课');
         return;
     }
-    // 用正则剥离开头的 #【学科】 标签，剩余部分才是真正的讲授内容
-    const raw = msgInput.value;
-    const m = raw.match(PREFIX_RE);
-    const text = (m ? raw.replace(PREFIX_RE, '') : raw).trim();
+    const text = msgInput.value.trim();
     if (!text && pendingImages.length === 0) return;
 
-    const fullText = `${subjectPrefix()}\n${text || '（请看这张图）'}`;
+    const fullText = text || '（请看这张图）';
     const imgs = [...pendingImages];
 
     renderUserMsg(fullText, imgs);
     state.messages.push({ role: 'user', text: fullText, images: imgs });
     state.turnCount++;
 
-    msgInput.value = subjectPrefix();
+    msgInput.value = '';
     autoGrow();
     pendingImages = [];
     renderPendingImgs();
@@ -987,8 +1250,7 @@ sendBtn.addEventListener('click', handleSend);
 msgInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
 });
-msgInput.addEventListener('input', ensurePrefix);
-msgInput.addEventListener('blur', ensurePrefix);
+msgInput.addEventListener('input', autoGrow);
 
 /* ==================== 教学评估（⏹） ==================== */
 async function handleEval() {
@@ -1012,10 +1274,13 @@ async function handleEval() {
             (m.role === 'user' ? '老师: ' : 'AI学生: ') + m.text + (m.images && m.images.length ? `（附${m.images.length}张图片）` : '')
         ).join('\n');
 
+        const diffMeta = DIFFICULTIES[state.difficulty];
         const evalPrompt = `你是一位资深教学评估专家，熟悉中国中小学课程标准与教学评价体系。
 
-以下是「老师」给「AI学生」（扮演零基础同桌）讲授【${state.subject}】的完整对话记录：
+以下是「老师」给「AI学生」讲授【${state.subject}】${state.topic ? `课题《${state.topic}》` : ''}的完整对话记录。
+本次 AI 学生的人格设定为「${diffMeta.name}」（${diffMeta.desc}），请在评估时考虑该人格对互动的影响（例如：捣蛋型学生本身不听讲，应重点评估老师的控场能力；假认真型学生假装听懂，应评估老师是否主动检验了学习效果）。
 
+对话记录：
 ${history}
 
 请据此评估老师的教学表现，从以下维度分项打分（每项满分20，总分100）：
@@ -1062,6 +1327,8 @@ function saveHistory() {
     const rec = {
         id: state.sessionId,
         subject: state.subject,
+        topic: state.topic || null,
+        difficulty: state.difficulty,
         time: Date.now(),
         preStudy: state.preStudy,
         evalReport: state.evalReport || null,
@@ -1096,8 +1363,9 @@ function renderHistoryList() {
     all.forEach(s => {
         const d = document.createElement('div');
         d.className = 'history-item' + (s.id === state.sessionId ? ' active' : '');
+        const diffMeta = s.difficulty && DIFFICULTIES[s.difficulty] ? DIFFICULTIES[s.difficulty].emoji + ' ' : '';
         d.innerHTML = `
-            <div class="h-sub"><span>${subjectEmoji(s.subject)} ${s.subject}</span><span>${s.preStudy ? '📖' : ''}</span></div>
+            <div class="h-sub"><span>${subjectEmoji(s.subject)} ${s.subject}${s.topic ? ' · ' + s.topic : ''}</span><span>${diffMeta}${s.preStudy ? '📖' : ''}</span></div>
             <div class="h-time">${fmtTime(s.time)} · ${s.messages.filter(m=>m.role==='user').length} 轮讲授${s.evalReport ? ' · 已评估' : ''}</div>`;
         d.addEventListener('click', () => restoreSession(s));
         historyList.appendChild(d);
@@ -1106,19 +1374,26 @@ function renderHistoryList() {
 
 function restoreSession(rec) {
     state.subject = rec.subject;
+    state.topic = rec.topic || null;
     state.sessionId = rec.id;
     state.preStudy = !!rec.preStudy;
     state.evalReport = rec.evalReport || null;
+    if (rec.difficulty && DIFFICULTIES[rec.difficulty]) {
+        state.difficulty = rec.difficulty;
+        localStorage.setItem('ai_student_diff', rec.difficulty);
+        diffSelect.value = rec.difficulty;
+        diffRow.querySelectorAll('.diff-chip').forEach(c => c.classList.toggle('active', c.dataset.diff === rec.difficulty));
+    }
     previewToggle.classList.toggle('on', state.preStudy);
     state.messages = rec.messages.map(m => ({ role: m.role, text: m.text, score: m.score, images: [] }));
     state.turnCount = state.messages.filter(m => m.role === 'user').length;
 
     welcome.style.display = 'none';
     chatInner.querySelectorAll('.msg, .eval-card').forEach(n => n.remove());
-    topSubject.textContent = `${subjectEmoji(rec.subject)} ${rec.subject}`;
+    topSubject.textContent = `${subjectEmoji(rec.subject)} ${rec.subject}${rec.topic ? ' · ' + rec.topic : ''}`;
     topSubject.style.display = '';
-    msgInput.placeholder = `在 #【${rec.subject}】 后面继续输入讲授内容……`;
-    msgInput.value = subjectPrefix();
+    msgInput.placeholder = `继续讲授${rec.topic ? `《${rec.topic}》` : `【${rec.subject}】`}……`;
+    msgInput.value = '';
     autoGrow();
 
     addSystemNote(`🕘 已恢复历史对话 · ${subjectEmoji(rec.subject)} ${rec.subject}（历史中的图片不保留）`);
