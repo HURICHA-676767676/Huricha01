@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI学生 · 讲课评估</title>
+<style>
+/* ================= 主题变量 ================= */
+:root {
+    --bg: #f2f4f8;
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e4e9f2;
+    --chat-bg: #eef1f6;
+    --panel-bg: #ffffff;
+    --bubble-ai: #ffffff;
+    --bubble-user: #95ec69;
+    --bubble-user-text: #10331f;
+    --text: #1a2433;
+    --text-2: #5b6f8c;
+    --text-3: #8a9bb5;
+    --accent: #3b6cff;
+    --accent-2: #2a5aee;
+    --accent-soft: rgba(59,108,255,0.10);
+    --border: #dfe6f0;
+    --shadow: 0 2px 12px rgba(20,40,80,0.06);
+    --input-bg: #ffffff;
+    --hover: #f0f4fb;
+    --danger: #e5534b;
+    --ok: #2a9d4a;
+}
+html[data-theme="dark"] {
+    --bg: #0a1628;
+    --sidebar-bg: #0d1c33;
+    --sidebar-border: #1a2f52;
+    --chat-bg: #0a1628;
+    --panel-bg: #10233f;
+    --bubble-ai: #132a4a;
+    --bubble-user: #1d5fd1;
+    --bubble-user-text: #eaf2ff;
+    --text: #dbe7fa;
+    --text-2: #8ba3c7;
+    --text-3: #5f7ba3;
+    --accent: #4d82ff;
+    --accent-2: #6b96ff;
+    --accent-soft: rgba(77,130,255,0.16);
+    --border: #1d3559;
+    --shadow: 0 2px 14px rgba(0,0,0,0.35);
+    --input-bg: #132a4a;
+    --hover: #16294a;
+    --danger: #ff6b62;
+    --ok: #4ecb71;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    transition: background .25s, color .25s;
+}
+
+/* ================= 整体布局 ================= */
+.layout { display: flex; height: 100vh; }
+
+/* ================= 侧边栏（默认完全折叠，滑出式） ================= */
+.sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    height: 100vh;
+    width: 0;
+    padding: 14px 0;
+    overflow: hidden;
+    background: var(--sidebar-bg);
+    border-right: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    transition: width .28s cubic-bezier(.4,0,.2,1), padding .28s, border-color .28s;
+    z-index: 60;
+    white-space: nowrap;
+}
+.sidebar.open {
+    width: 250px;
+    padding: 14px 12px;
+    border-right-color: var(--sidebar-border);
+    box-shadow: 8px 0 40px rgba(0,0,0,.18);
+}
+.sb-mask {
+    position: fixed; inset: 0;
+    background: rgba(8,16,32,.35);
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+    z-index: 55;
+}
+.sb-mask.show { opacity: 1; pointer-events: auto; }
+.sb-logo {
+    width: 42px; height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), #7ba2ff);
+    color: #fff; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(59,108,255,.35);
+    margin: 0 auto 8px;
+}
+.sb-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 11px;
+    border-radius: 12px;
+    cursor: pointer;
+    color: var(--text-2);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background .15s, color .15s;
+    user-select: none;
+}
+.sb-item:hover { background: var(--hover); color: var(--text); }
+.sb-item .ico { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.sb-spacer { flex: 1; }
+
+/* 历史记录区 */
+.history-wrap {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 6px;
+    border-top: 1px solid var(--sidebar-border);
+    padding-top: 10px;
+}
+.history-title {
+    font-size: 12px; color: var(--text-3);
+    padding: 0 8px 8px; letter-spacing: 1px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.history-clear { cursor: pointer; font-size: 12px; }
+.history-clear:hover { color: var(--danger); }
+.history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.history-item {
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-2);
+    transition: background .15s;
+    border: 1px solid transparent;
+}
+.history-item:hover { background: var(--hover); color: var(--text); }
+.history-item.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.history-item .h-sub { font-weight: 600; margin-bottom: 2px; display:flex; justify-content: space-between; }
+.history-item .h-time { font-size: 11px; color: var(--text-3); }
+.history-empty { font-size: 12px; color: var(--text-3); text-align: center; padding: 16px 0; }
+
+/* ================= 主区域 ================= */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* 顶栏 */
+.topbar {
+    height: 58px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 18px;
+    gap: 14px;
+    flex-shrink: 0;
+}
+.tb-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.tb-subject {
+    font-size: 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 3px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .15s;
+}
+.tb-subject:hover { filter: brightness(1.08); }
+.tb-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+
+/* 预习模式开关 */
+.preview-toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-2);
+    cursor: pointer; user-select: none;
+}
+.preview-toggle .pt-label { display: flex; align-items: center; gap: 4px; }
+.switch {
+    width: 40px; height: 22px;
+    border-radius: 20px;
+    background: var(--border);
+    position: relative;
+    transition: background .2s;
+    flex-shrink: 0;
+}
+.switch::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    top: 3px; left: 3px;
+    transition: left .2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+.preview-toggle.on .switch { background: var(--accent); }
+.preview-toggle.on .switch::after { left: 21px; }
+.preview-toggle.on .pt-label { color: var(--accent); font-weight: 600; }
+
+.cost-badge {
+    font-size: 12px; color: var(--text-3);
+    background: var(--hover);
+    padding: 4px 12px; border-radius: 30px;
+}
+
+/* ================= 聊天区 ================= */
+.chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 26px 0 12px;
+    background: var(--chat-bg);
+    scroll-behavior: smooth;
+}
+.chat-inner { max-width: 860px; margin: 0 auto; padding: 0 22px; display: flex; flex-direction: column; gap: 18px; }
+
+/* 欢迎页（学科选择） */
+.welcome { text-align: center; padding: 30px 10px 10px; animation: fadeUp .5s ease; }
+.welcome h2 { font-size: 24px; margin-bottom: 8px; }
+.welcome p { color: var(--text-2); font-size: 14px; margin-bottom: 26px; }
+.subject-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    max-width: 720px;
+    margin: 0 auto;
+}
+.subject-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 10px 14px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.subject-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: var(--shadow);
+}
+.subject-card .sc-emoji { font-size: 30px; }
+.subject-card .sc-name { font-size: 14px; font-weight: 600; }
+
+/* 消息气泡 */
+.msg { display: flex; gap: 10px; animation: fadeUp .3s ease; }
+.msg .avatar {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+}
+.msg .body { max-width: 72%; display: flex; flex-direction: column; gap: 4px; }
+.msg .name { font-size: 12px; color: var(--text-3); padding: 0 4px; }
+.msg .bubble {
+    padding: 11px 15px;
+    border-radius: 4px 16px 16px 16px;
+    font-size: 15px; line-height: 1.65;
+    box-shadow: var(--shadow);
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.msg.ai .bubble { background: var(--bubble-ai); color: var(--text); }
+.msg.user { flex-direction: row-reverse; }
+.msg.user .body { align-items: flex-end; }
+.msg.user .bubble {
+    background: var(--bubble-user); color: var(--bubble-user-text);
+    border-radius: 16px 4px 16px 16px;
+}
+.msg .score-tag {
+    font-size: 11px; color: var(--text-3);
+    padding: 0 4px; display: flex; align-items: center; gap: 4px;
+}
+.msg .score-tag b { color: var(--accent); font-weight: 600; }
+.msg .score-tag.low b { color: var(--danger); }
+.msg .imgs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.msg .imgs img {
+    max-width: 180px; max-height: 140px;
+    border-radius: 10px; object-fit: cover;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+}
+.msg.system-note { justify-content: center; }
+.msg.system-note .bubble {
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12.5px; border-radius: 30px;
+    padding: 6px 16px; box-shadow: none; text-align: center;
+}
+
+/* 打字中 */
+.typing { display: inline-flex; gap: 5px; padding: 4px 2px; }
+.typing i {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-3);
+    animation: bounce 1.2s infinite;
+}
+.typing i:nth-child(2) { animation-delay: .15s; }
+.typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity:.4 } 30% { transform: translateY(-5px); opacity:1 } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+
+/* 评估报告卡片 */
+.eval-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--accent);
+    border-radius: 18px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    animation: fadeUp .4s ease;
+}
+.eval-card h3 { font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.eval-card .eval-text { font-size: 14.5px; line-height: 1.8; white-space: pre-wrap; color: var(--text); }
+
+/* ================= 底部输入栏 ================= */
+.composer {
+    background: var(--panel-bg);
+    border-top: 1px solid var(--border);
+    padding: 10px 18px 14px;
+    flex-shrink: 0;
+}
+.composer-inner { max-width: 860px; margin: 0 auto; }
+.pending-imgs { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 8px; }
+.pending-imgs .pi {
+    position: relative; width: 56px; height: 56px;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--border);
+}
+.pending-imgs .pi img { width: 100%; height: 100%; object-fit: cover; }
+.pending-imgs .pi .del {
+    position: absolute; top: 2px; right: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(0,0,0,.6); color: #fff;
+    font-size: 10px; line-height: 16px; text-align: center;
+    cursor: pointer;
+}
+.composer-row { display: flex; align-items: flex-end; gap: 8px; }
+.cbtn {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text-2);
+    font-size: 19px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: .15s;
+    flex-shrink: 0;
+}
+.cbtn:hover { background: var(--hover); color: var(--text); }
+.cbtn:disabled { opacity: .4; cursor: not-allowed; }
+.cbtn.eval { font-size: 18px; }
+.cbtn.eval:hover { color: var(--danger); border-color: var(--danger); }
+.menu-btn {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-2);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: .15s;
+    flex-shrink: 0;
+}
+.menu-btn:hover { background: var(--hover); color: var(--text); }
+.input-wrap {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 9px 14px;
+    transition: border-color .15s, box-shadow .15s;
+}
+.input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input-wrap textarea {
+    width: 100%;
+    border: none; outline: none; resize: none;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px; line-height: 1.5;
+    max-height: 120px;
+    display: block;
+}
+.send-btn {
+    height: 40px;
+    padding: 0 20px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    flex-shrink: 0;
+}
+.send-btn:hover { background: var(--accent-2); }
+.send-btn:disabled { opacity: .45; cursor: not-allowed; }
+.composer-hint {
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--text-3);
+    margin-top: 7px;
+}
+
+/* ================= 设置弹窗 ================= */
+.modal-mask {
+    position: fixed; inset: 0;
+    background: rgba(8,16,32,.45);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(3px);
+}
+.modal-mask.show { display: flex; }
+.modal {
+    width: 420px; max-width: 92vw;
+    background: var(--panel-bg);
+    border-radius: 20px;
+    padding: 24px 26px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    animation: fadeUp .25s ease;
+    border: 1px solid var(--border);
+}
+.modal h3 { font-size: 17px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+.modal .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.modal label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.modal input {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+    transition: .15s;
+}
+.modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.modal .form-hint { font-size: 12px; color: var(--text-3); }
+.modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.modal-btns button {
+    padding: 9px 22px; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border);
+    background: var(--input-bg); color: var(--text);
+}
+.modal-btns .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.modal-btns .primary:hover { background: var(--accent-2); }
+
+/* 图片查看器 */
+.img-viewer {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.82);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; cursor: zoom-out;
+}
+.img-viewer.show { display: flex; }
+.img-viewer img { max-width: 92vw; max-height: 90vh; border-radius: 8px; }
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@media (max-width: 640px) {
+    .sidebar.open { position: absolute; height: 100%; box-shadow: 0 0 40px rgba(0,0,0,.3); }
+    .msg .body { max-width: 82%; }
+    .preview-toggle .pt-label span.txt { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+    <!-- ========== 侧边栏 ========== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sb-logo" id="logoBtn" title="展开/收起侧边栏">🧑‍🎓</div>
+        <div class="sb-item" id="newChatBtn"><span class="ico">✏️</span><span class="lbl">新的讲课</span></div>
+        <div class="sb-item" id="themeBtn"><span class="ico" id="themeIco">🌙</span><span class="lbl" id="themeLbl">夜间模式</span></div>
+        <div class="sb-item" id="settingsBtn"><span class="ico">⚙️</span><span class="lbl">API 设置</span></div>
+
+        <div class="history-wrap">
+            <div class="history-title">
+                <span>历史记录</span>
+                <span class="history-clear" id="clearHistory">清空</span>
+            </div>
+            <div class="history-list" id="historyList">
+                <div class="history-empty">暂无历史记录</div>
+            </div>
+        </div>
+        <div class="sb-spacer"></div>
+    </aside>
+
+    <!-- ========== 主区域 ========== -->
+    <div class="main">
+        <!-- 顶栏 -->
+        <div class="topbar">
+            <button class="menu-btn" id="menuBtn" title="打开侧边栏">☰</button>
+            <div class="tb-title">给 AI 学生讲课 <span class="tb-subject" id="topSubject" style="display:none;"></span></div>
+            <div class="tb-right">
+                <div class="preview-toggle" id="previewToggle" title="开启后：AI学生已预习过内容，会更频繁追问">
+                    <span class="pt-label">📖 <span class="txt">预习模式</span></span>
+                    <div class="switch"></div>
+                </div>
+                <span class="cost-badge" id="costDisplay">💰 0.0000 元</span>
+            </div>
+        </div>
+
+        <!-- 聊天区 -->
+        <div class="chat" id="chat">
+            <div class="chat-inner" id="chatInner">
+                <!-- 欢迎页 -->
+                <div class="welcome" id="welcome">
+                    <h2>👋 今天想讲哪一科？</h2>
+                    <p>选择一个学科，开始向你的 AI 学生讲授知识点。它会像真实同桌一样听课、困惑、追问。</p>
+                    <div class="subject-grid" id="subjectGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入栏 -->
+        <div class="composer">
+            <div class="composer-inner">
+                <div class="pending-imgs" id="pendingImgs"></div>
+                <div class="composer-row">
+                    <button class="cbtn" id="imgBtn" title="上传图片">🖼️</button>
+                    <input type="file" id="imgInput" accept="image/*" multiple hidden>
+                    <div class="input-wrap">
+                        <textarea id="msgInput" rows="1" placeholder="先选择上方的学科，再开始讲课……"></textarea>
+                    </div>
+                    <button class="send-btn" id="sendBtn">发送</button>
+                    <button class="cbtn eval" id="evalBtn" title="结束讲课，生成教学评估报告">⏹</button>
+                </div>
+                <div class="composer-hint">Enter 发送 · Shift+Enter 换行 · ⏹ 结束讲课并生成评估 · AI学生的追问越尖锐，说明讲得越不清楚</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 侧边栏遮罩 -->
+<div class="sb-mask" id="sbMask"></div>
+
+<!-- 设置弹窗 -->
+<div class="modal-mask" id="settingsModal">
+    <div class="modal">
+        <h3>⚙️ API 设置</h3>
+        <div class="form-row">
+            <label>API Key</label>
+            <input type="password" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxx">
+            <div class="form-hint">仅保存在本地浏览器中，不会上传到任何服务器</div>
+        </div>
+        <div class="form-row">
+            <label>API URL</label>
+            <input type="text" id="apiUrlInput" placeholder="https://api.siliconflow.cn/v1/chat/completions">
+            <div class="form-hint">OpenAI 兼容格式的聊天补全接口</div>
+        </div>
+        <div class="form-row">
+            <label>Model</label>
+            <input type="text" id="modelInput" placeholder="deepseek-ai/DeepSeek-V4-Flash">
+            <div class="form-hint">模型 ID，如需识别图片请使用支持视觉的模型</div>
+        </div>
+        <div class="modal-btns">
+            <button id="cancelSettings">取消</button>
+            <button class="primary" id="saveSettingsBtn">💾 保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 图片查看器 -->
+<div class="img-viewer" id="imgViewer"><img id="viewerImg" src=""></div>
+
+<script>
+/* ==================== 配置 ==================== */
+const DEFAULT_API_URL = "https://api.siliconflow.cn/v1/chat/completions";
+const DEFAULT_MODEL = "deepseek-ai/DeepSeek-V4-Flash";
+
+const SUBJECTS = [
+    { name: '数学', emoji: '📐' }, { name: '语文', emoji: '📖' },
+    { name: '英语', emoji: '🔤' }, { name: '物理', emoji: '⚛️' },
+    { name: '化学', emoji: '🧪' }, { name: '生物', emoji: '🧬' },
+    { name: '政治', emoji: '🏛️' }, { name: '历史', emoji: '🏺' },
+    { name: '地理', emoji: '🌍' }, { name: '哲学', emoji: '💭' },
+    { name: '法学', emoji: '⚖️' }, { name: '经济', emoji: '📈' },
+    { name: '心理', emoji: '🧠' }, { name: '计算机', emoji: '💻' },
+    { name: '医学', emoji: '🩺' }, { name: '艺术', emoji: '🎨' },
+];
+
+/* ==================== 状态 ==================== */
+let state = {
+    subject: null,          // 当前学科
+    messages: [],           // {role, text, images:[], score}
+    preStudy: false,        // 预习模式
+    totalCost: 0,
+    isProcessing: false,
+    sessionId: null,
+    turnCount: 0,           // 讲授轮数
+};
+let pendingImages = [];     // 待发送图片 dataURL 数组
+
+/* ==================== DOM ==================== */
+const $ = id => document.getElementById(id);
+const sidebar = $('sidebar'), chatEl = $('chat'), chatInner = $('chatInner');
+const welcome = $('welcome'), subjectGrid = $('subjectGrid');
+const msgInput = $('msgInput'), sendBtn = $('sendBtn'), evalBtn = $('evalBtn');
+const imgBtn = $('imgBtn'), imgInput = $('imgInput'), pendingImgsEl = $('pendingImgs');
+const topSubject = $('topSubject');
+const sbMask = $('sbMask');
+const previewToggle = $('previewToggle'), costDisplay = $('costDisplay');
+const historyList = $('historyList');
+
+/* ==================== 设置存取 ==================== */
+function loadSettings() {
+    return {
+        apiKey: localStorage.getItem('ai_student_api_key') || '',
+        apiUrl: localStorage.getItem('ai_student_api_url') || DEFAULT_API_URL,
+        model: localStorage.getItem('ai_student_model') || DEFAULT_MODEL
+    };
+}
+
+/* ==================== 主题 ==================== */
+function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    localStorage.setItem('ai_student_theme', t);
+    $('themeIco').textContent = t === 'dark' ? '☀️' : '🌙';
+    $('themeLbl').textContent = t === 'dark' ? '日间模式' : '夜间模式';
+}
+$('themeBtn').addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+});
+applyTheme(localStorage.getItem('ai_student_theme') || 'light');
+
+/* ==================== 侧边栏（完全折叠，☰ 滑出） ==================== */
+function openSidebar() { sidebar.classList.add('open'); sbMask.classList.add('show'); }
+function closeSidebar() { sidebar.classList.remove('open'); sbMask.classList.remove('show'); }
+$('menuBtn').addEventListener('click', openSidebar);
+$('logoBtn').addEventListener('click', closeSidebar);
+sbMask.addEventListener('click', closeSidebar);
+
+/* ==================== 学科前缀（正则守护） ==================== */
+const PREFIX_RE = /^#【(.+?)】/;
+function subjectPrefix() { return state.subject ? `#【${state.subject}】` : ''; }
+function ensurePrefix() {
+    if (!state.subject) return;
+    const prefix = subjectPrefix();
+    if (!msgInput.value.startsWith(prefix)) {
+        // 前缀被误删/改动：仅剥离开头≤10字的残缺标签（如“#数学】”“【数学】”），其余内容原样保留
+        const mangled = msgInput.value.match(/^#?【?[^#】\n]{0,10}】/);
+        const body = mangled ? msgInput.value.slice(mangled[0].length) : msgInput.value;
+        msgInput.value = prefix + body;
+    }
+    autoGrow();
+}
+function autoGrow() {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+}
+
+/* ==================== 设置弹窗 ==================== */
+const settingsModal = $('settingsModal');
+$('settingsBtn').addEventListener('click', () => {
+    const s = loadSettings();
+    $('apiKeyInput').value = s.apiKey;
+    $('apiUrlInput').value = s.apiUrl;
+    $('modelInput').value = s.model;
+    settingsModal.classList.add('show');
+});
+$('cancelSettings').addEventListener('click', () => settingsModal.classList.remove('show'));
+settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.remove('show'); });
+$('saveSettingsBtn').addEventListener('click', () => {
+    localStorage.setItem('ai_student_api_key', $('apiKeyInput').value.trim());
+    localStorage.setItem('ai_student_api_url', $('apiUrlInput').value.trim() || DEFAULT_API_URL);
+    localStorage.setItem('ai_student_model', $('modelInput').value.trim() || DEFAULT_MODEL);
+    settingsModal.classList.remove('show');
+});
+
+/* ==================== 学科选择 ==================== */
+SUBJECTS.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'subject-card';
+    card.innerHTML = `<div class="sc-emoji">${s.emoji}</div><div class="sc-name">${s.name}</div>`;
+    card.addEventListener('click', () => startSession(s));
+    subjectGrid.appendChild(card);
+});
+
+function subjectEmoji(name) {
+    const f = SUBJECTS.find(s => s.name === name);
+    return f ? f.emoji : '📚';
+}
+
+function startSession(subject) {
+    state.subject = subject.name;
+    state.messages = [];
+    state.sessionId = 'sess_' + Date.now();
+    state.turnCount = 0;
+    welcome.style.display = 'none';
+    chatInner.querySelectorAll('.msg, .eval-card').forEach(n => n.remove());
+    topSubject.textContent = `${subject.emoji} ${subject.name}`;
+    topSubject.style.display = '';
+    msgInput.placeholder = `在 #【${subject.name}】 后面输入你的讲授内容……`;
+    msgInput.value = subjectPrefix();
+    autoGrow();
+    msgInput.focus();
+    msgInput.setSelectionRange(msgInput.value.length, msgInput.value.length);
+    addSystemNote(`${subject.emoji} 已就位！你的 AI 学生准备好了，开始讲【${subject.name}】吧`);
+    // AI 学生开场白
+    aiSay(`嗨！我是你的同桌～听说你要给我讲【${subject.name}】？我${state.preStudy ? '刚好预习过一点，可能问题比较多哈哈' : '完全没接触过，你从头给我讲讲呗'}！`, null, false);
+    saveHistory();
+}
+
+topSubject.addEventListener('click', backToWelcome);
+$('newChatBtn').addEventListener('click', () => { backToWelcome(); closeSidebar(); });
+
+function backToWelcome() {
+    state.subject = null;
+    state.messages = [];
+    state.sessionId = null;
+    state.turnCount = 0;
+    welcome.style.display = '';
+    chatInner.querySelectorAll('.msg, .eval-card').forEach(n => n.remove());
+    topSubject.style.display = 'none';
+    msgInput.value = '';
+    msgInput.placeholder = '先选择上方的学科，再开始讲课……';
+    autoGrow();
+    pendingImages = [];
+    renderPendingImgs();
+    renderHistoryList();
+}
+
+/* ==================== 预习模式 ==================== */
+previewToggle.addEventListener('click', () => {
+    state.preStudy = !state.preStudy;
+    previewToggle.classList.toggle('on', state.preStudy);
+    if (state.subject) {
+        addSystemNote(state.preStudy
+            ? '📖 预习模式已开启：AI 学生提前看过这部分内容，追问会更频繁、更刁钻'
+            : '📕 预习模式已关闭：AI 学生回到“完全不了解”的状态');
+    }
+});
+
+/* ==================== 消息渲染 ==================== */
+function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+
+function addSystemNote(text) {
+    const d = document.createElement('div');
+    d.className = 'msg system-note';
+    d.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+    chatInner.appendChild(d);
+    scrollBottom();
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderUserMsg(text, images) {
+    const d = document.createElement('div');
+    d.className = 'msg user';
+    let imgsHtml = '';
+    if (images && images.length) {
+        imgsHtml = `<div class="imgs">` + images.map(u => `<img src="${u}" alt="">`).join('') + `</div>`;
+    }
+    d.innerHTML = `
+        <div class="avatar">🧑‍🏫</div>
+        <div class="body">
+            <div class="bubble">${escapeHtml(text)}${imgsHtml}</div>
+        </div>`;
+    chatInner.appendChild(d);
+    d.querySelectorAll('.imgs img').forEach(im => im.addEventListener('click', () => viewImg(im.src)));
+    scrollBottom();
+}
+
+function aiSay(text, score, isReply = true) {
+    const d = document.createElement('div');
+    d.className = 'msg ai';
+    let scoreHtml = '';
+    if (score !== null && score !== undefined && score !== 'NA') {
+        const n = parseInt(score);
+        const low = !isNaN(n) && n < 70;
+        scoreHtml = `<div class="score-tag${low ? ' low' : ''}">📝 本轮讲授评分 <b>${isNaN(n) ? score : n}</b>/100${low ? '（没讲懂，我要追问）' : ''}</div>`;
+    }
+    d.innerHTML = `
+        <div class="avatar">🧑‍🎓</div>
+        <div class="body">
+            <div class="name">AI学生 · 你的同桌</div>
+            <div class="bubble">${escapeHtml(text)}</div>
+            ${scoreHtml}
+        </div>`;
+    chatInner.appendChild(d);
+    scrollBottom();
+    return d;
+}
+
+function showTyping() {
+    const d = document.createElement('div');
+    d.className = 'msg ai';
+    d.id = 'typingMsg';
+    d.innerHTML = `
+        <div class="avatar">🧑‍🎓</div>
+        <div class="body">
+            <div class="name">AI学生 · 你的同桌</div>
+            <div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>
+        </div>`;
+    chatInner.appendChild(d);
+    scrollBottom();
+}
+function hideTyping() { $('typingMsg')?.remove(); }
+
+/* ==================== 图片上传 ==================== */
+imgBtn.addEventListener('click', () => imgInput.click());
+imgInput.addEventListener('change', e => {
+    const files = [...e.target.files].slice(0, 6 - pendingImages.length);
+    files.forEach(f => {
+        if (!f.type.startsWith('image/')) return;
+        const rd = new FileReader();
+        rd.onload = () => { pendingImages.push(rd.result); renderPendingImgs(); };
+        rd.readAsDataURL(f);
+    });
+    imgInput.value = '';
+});
+function renderPendingImgs() {
+    pendingImgsEl.innerHTML = '';
+    pendingImages.forEach((u, i) => {
+        const d = document.createElement('div');
+        d.className = 'pi';
+        d.innerHTML = `<img src="${u}"><span class="del">✕</span>`;
+        d.querySelector('.del').addEventListener('click', () => {
+            pendingImages.splice(i, 1); renderPendingImgs();
+        });
+        d.querySelector('img').addEventListener('click', () => viewImg(u));
+        pendingImgsEl.appendChild(d);
+    });
+}
+function viewImg(src) {
+    $('viewerImg').src = src;
+    $('imgViewer').classList.add('show');
+}
+$('imgViewer').addEventListener('click', () => $('imgViewer').classList.remove('show'));
+
+/* ==================== API 调用 ==================== */
+async function callAI(messagesPayload, maxTokens = 2000) {
+    const s = loadSettings();
+    if (!s.apiKey) throw new Error("请先在 ⚙️ API 设置 中填写 API Key");
+    const resp = await fetch(s.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${s.apiKey}` },
+        body: JSON.stringify({ model: s.model, messages: messagesPayload, max_tokens: maxTokens, temperature: 0.75 })
+    });
+    if (!resp.ok) {
+        let errMsg = `HTTP ${resp.status}`;
+        try { const err = await resp.json(); errMsg = err.error?.message || JSON.stringify(err); }
+        catch (e) { errMsg = await resp.text() || errMsg; }
+        throw new Error(`API 错误: ${errMsg}`);
+    }
+    const data = await resp.json();
+    const usage = data.usage || { total_tokens: 0 };
+    state.totalCost += (usage.total_tokens / 1000000) * 2;
+    costDisplay.textContent = `💰 ${state.totalCost.toFixed(4)} 元`;
+    return data.choices[0].message.content;
+}
+
+/* ==================== 学生 System Prompt ==================== */
+function buildStudentPrompt() {
+    const preStudyBlock = state.preStudy ? `
+【认知状态：预习模式（已开启）】
+- 你已经提前预习过这部分内容，了解大致框架、常见考点和容易混淆的地方。
+- 因此你要更频繁地追问：几乎每个讲授回合都要提出疑问或核对细节。
+- 你会拿自己预习时看到的说法来核对老师讲的内容，发现矛盾立刻指出（"但我预习时看到的好像不是这样……"）。
+- 你甚至会故意用预习时的错误理解来试探老师讲得牢不牢。`
+: `
+【认知状态：默认模式（零基础）】
+- 你之前完全不了解这部分内容，是一张白纸，不是精通者、也不是"知道但装不懂"。
+- 你只能根据老师讲过的内容来理解，老师没讲的你一概不知道。
+- 你不会主动引导老师把内容讲完，不会替他补全没讲的知识点，更不会按大纲催进度。
+- 你就是一个真实的学生：听懂了就说懂了，没懂就直接说没懂。`;
+
+    return `# 角色扮演指令（最高优先级，每轮回复前必须重新激活）
+
+## 1. 角色身份定义
+你是「AI学生」，用户（老师）的同桌，一名真实的普通中学生。
+- 你不是 AI 助手，严禁自称 AI、严禁使用"作为AI""我理解你的意思"这类口吻。
+- 你在听老师讲授【${state.subject}】学科的内容。
+- 你理解速度中等，会钻牛角尖，会走神，会有自己的奇怪联想——像真实学生一样。
+- 说话口语化，像微信聊天，可以用"啊？""等等""所以就是说……""我还是没懂"这类表达。
+${preStudyBlock}
+
+## 2. 隐式思维链（内部推理，禁止输出到回复正文）
+每轮回复前，你必须在内部依次完成：
+(1) 角色身份激活：重新阅读并进入上述身份，确认自己的认知状态（${state.preStudy ? '已预习' : '零基础'}）。
+(2) 讲授打分：对老师本轮讲授内容，从【语言流畅度】【信息完整度】【逻辑清晰度】【举例恰当性】四个维度内部打分（0-100）。
+    - 例外：对话开头（老师的第一轮讲授）不打分；老师明确表示"讲完了"/结束时本轮不打分。这两种情况输出 SCORE:NA。
+(3) 行为决策：
+    - 若打分 < 70（讲得不清晰/有硬伤/没讲懂）：必须追问，指出具体哪里没听懂，或给出自己的（可能是错误的）理解请老师确认。
+    - 若打分 ≥ 70：可以表示听懂了并用自己的话复述确认，也可以提一个自然的延伸小问题。${state.preStudy ? '但在预习模式下，即使听懂了也要保持较高的追问频率（约一半回合追问细节或考点）。' : ''}
+    - 全程模拟真实学生：不要为了推进度而提问，不为老师兜底，不替老师总结他没讲过的东西。
+
+## 3. 输出格式（严格遵守）
+- 第一行只输出：SCORE:分数  或  SCORE:NA
+- 第二行起输出你作为学生的口语化回复，120 字以内，一个自然段，不要分点、不要用 markdown、不要暴露思维过程与"打分"字样。
+
+现在开始，继续以同桌学生的身份回应老师的讲授。`;
+}
+
+function buildHistoryPayload() {
+    // 组装发送给 API 的历史消息（含图片）
+    const payload = [];
+    state.messages.forEach(m => {
+        if (m.role === 'user') {
+            const content = [];
+            content.push({ type: 'text', text: m.text });
+            (m.images || []).forEach(u => content.push({ type: 'image_url', image_url: { url: u } }));
+            payload.push({ role: 'user', content: m.images && m.images.length ? content : m.text });
+        } else {
+            payload.push({ role: 'assistant', content: m.text });
+        }
+    });
+    return payload;
+}
+
+/* ==================== 发送（讲课） ==================== */
+async function handleSend() {
+    if (state.isProcessing) return;
+    if (!state.subject) {
+        addSystemNote('👆 请先在上方选择一个学科再开始讲课');
+        return;
+    }
+    // 用正则剥离开头的 #【学科】 标签，剩余部分才是真正的讲授内容
+    const raw = msgInput.value;
+    const m = raw.match(PREFIX_RE);
+    const text = (m ? raw.replace(PREFIX_RE, '') : raw).trim();
+    if (!text && pendingImages.length === 0) return;
+
+    const fullText = `${subjectPrefix()}\n${text || '（请看这张图）'}`;
+    const imgs = [...pendingImages];
+
+    renderUserMsg(fullText, imgs);
+    state.messages.push({ role: 'user', text: fullText, images: imgs });
+    state.turnCount++;
+
+    msgInput.value = subjectPrefix();
+    autoGrow();
+    pendingImages = [];
+    renderPendingImgs();
+
+    state.isProcessing = true;
+    sendBtn.disabled = true; evalBtn.disabled = true;
+    showTyping();
+
+    try {
+        const payload = [{ role: 'system', content: buildStudentPrompt() }, ...buildHistoryPayload()];
+        const raw = await callAI(payload, 600);
+        hideTyping();
+
+        // 解析 SCORE 行
+        let score = 'NA', reply = raw.trim();
+        const m = raw.match(/^\s*SCORE\s*:\s*(\d+|NA)\s*\n?/i);
+        if (m) { score = m[1].toUpperCase(); reply = raw.slice(m[0].length).trim(); }
+
+        aiSay(reply, score);
+        state.messages.push({ role: 'assistant', text: reply, score });
+        saveHistory();
+    } catch (err) {
+        hideTyping();
+        addSystemNote('❌ ' + err.message);
+    } finally {
+        state.isProcessing = false;
+        sendBtn.disabled = false; evalBtn.disabled = false;
+        msgInput.focus();
+    }
+}
+
+sendBtn.addEventListener('click', handleSend);
+msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+msgInput.addEventListener('input', ensurePrefix);
+msgInput.addEventListener('blur', ensurePrefix);
+
+/* ==================== 教学评估（⏹） ==================== */
+async function handleEval() {
+    if (state.isProcessing) return;
+    if (!state.subject || state.messages.filter(m => m.role === 'user').length === 0) {
+        addSystemNote('⚠️ 还没有讲授内容，先讲几轮再生成评估报告吧');
+        return;
+    }
+
+    state.isProcessing = true;
+    sendBtn.disabled = true; evalBtn.disabled = true;
+
+    const card = document.createElement('div');
+    card.className = 'eval-card';
+    card.innerHTML = `<h3>📋 教学评估报告 · ${subjectEmoji(state.subject)} ${state.subject}</h3><div class="eval-text">⏳ 正在生成评估……</div>`;
+    chatInner.appendChild(card);
+    scrollBottom();
+
+    try {
+        const history = state.messages.map(m =>
+            (m.role === 'user' ? '老师: ' : 'AI学生: ') + m.text + (m.images && m.images.length ? `（附${m.images.length}张图片）` : '')
+        ).join('\n');
+
+        const evalPrompt = `你是一位资深教学评估专家，熟悉中国中小学课程标准与教学评价体系。
+
+以下是「老师」给「AI学生」（扮演零基础同桌）讲授【${state.subject}】的完整对话记录：
+
+${history}
+
+请据此评估老师的教学表现，从以下维度分项打分（每项满分20，总分100）：
+1. 语言流畅度：表达是否通顺、通俗易懂、节奏得当。
+2. 信息完整度：知识点是否讲全、有无遗漏关键概念或步骤。
+3. 课程标准契合度：内容是否符合该学科学段的课程标准/考纲要求，深度是否恰当。
+4. 逻辑结构与举例：讲解是否有条理，是否用恰当的例子、类比帮助理解。
+5. 互动回应能力：面对学生的追问与困惑，回应是否准确、耐心、有针对性。
+
+输出要求：
+- 纯文本，不用 markdown。
+- 每项一行：维度名 + 分数 + 一句简评。
+- 最后输出"总分：X/100"与"总评与改进建议"（2-3句）。
+- 全文不超过 320 字。`;
+
+        const report = await callAI([
+            { role: 'system', content: evalPrompt },
+            { role: 'user', content: '请生成评估报告。' }
+        ], 800);
+
+        card.querySelector('.eval-text').textContent = report;
+        state.evalReport = report;
+        saveHistory();
+    } catch (err) {
+        card.querySelector('.eval-text').textContent = '❌ 评估生成失败：' + err.message;
+    } finally {
+        state.isProcessing = false;
+        sendBtn.disabled = false; evalBtn.disabled = false;
+        scrollBottom();
+    }
+}
+evalBtn.addEventListener('click', handleEval);
+
+/* ==================== 历史记录 ==================== */
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem('ai_student_history') || '[]'); }
+    catch { return []; }
+}
+
+function saveHistory() {
+    if (!state.sessionId || !state.subject) return;
+    const all = loadHistory();
+    const idx = all.findIndex(s => s.id === state.sessionId);
+    const rec = {
+        id: state.sessionId,
+        subject: state.subject,
+        time: Date.now(),
+        preStudy: state.preStudy,
+        evalReport: state.evalReport || null,
+        // 图片不存入历史（体积太大），以占位文字记录
+        messages: state.messages.map(m => ({
+            role: m.role, text: m.text, score: m.score || null,
+            imgCount: (m.images || []).length
+        }))
+    };
+    if (idx >= 0) all[idx] = rec; else all.unshift(rec);
+    while (all.length > 30) all.pop();
+    try { localStorage.setItem('ai_student_history', JSON.stringify(all)); }
+    catch (e) { /* 存储超限时放弃保存 */ }
+    renderHistoryList();
+}
+
+function fmtTime(t) {
+    const d = new Date(t);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return sameDay ? hm : `${d.getMonth()+1}/${d.getDate()} ${hm}`;
+}
+
+function renderHistoryList() {
+    const all = loadHistory();
+    if (!all.length) {
+        historyList.innerHTML = '<div class="history-empty">暂无历史记录</div>';
+        return;
+    }
+    historyList.innerHTML = '';
+    all.forEach(s => {
+        const d = document.createElement('div');
+        d.className = 'history-item' + (s.id === state.sessionId ? ' active' : '');
+        d.innerHTML = `
+            <div class="h-sub"><span>${subjectEmoji(s.subject)} ${s.subject}</span><span>${s.preStudy ? '📖' : ''}</span></div>
+            <div class="h-time">${fmtTime(s.time)} · ${s.messages.filter(m=>m.role==='user').length} 轮讲授${s.evalReport ? ' · 已评估' : ''}</div>`;
+        d.addEventListener('click', () => restoreSession(s));
+        historyList.appendChild(d);
+    });
+}
+
+function restoreSession(rec) {
+    state.subject = rec.subject;
+    state.sessionId = rec.id;
+    state.preStudy = !!rec.preStudy;
+    state.evalReport = rec.evalReport || null;
+    previewToggle.classList.toggle('on', state.preStudy);
+    state.messages = rec.messages.map(m => ({ role: m.role, text: m.text, score: m.score, images: [] }));
+    state.turnCount = state.messages.filter(m => m.role === 'user').length;
+
+    welcome.style.display = 'none';
+    chatInner.querySelectorAll('.msg, .eval-card').forEach(n => n.remove());
+    topSubject.textContent = `${subjectEmoji(rec.subject)} ${rec.subject}`;
+    topSubject.style.display = '';
+    msgInput.placeholder = `在 #【${rec.subject}】 后面继续输入讲授内容……`;
+    msgInput.value = subjectPrefix();
+    autoGrow();
+
+    addSystemNote(`🕘 已恢复历史对话 · ${subjectEmoji(rec.subject)} ${rec.subject}（历史中的图片不保留）`);
+    state.messages.forEach(m => {
+        if (m.role === 'user') {
+            renderUserMsg(m.text + (m.imgCount ? `\n[${m.imgCount}张图片]` : ''), []);
+        } else {
+            aiSay(m.text, m.score);
+        }
+    });
+    if (state.evalReport) {
+        const card = document.createElement('div');
+        card.className = 'eval-card';
+        card.innerHTML = `<h3>📋 教学评估报告 · ${subjectEmoji(rec.subject)} ${rec.subject}</h3><div class="eval-text">${escapeHtml(state.evalReport)}</div>`;
+        chatInner.appendChild(card);
+    }
+    renderHistoryList();
+    closeSidebar();
+}
+
+$('clearHistory').addEventListener('click', () => {
+    if (!confirm('确定清空全部历史记录？')) return;
+    localStorage.removeItem('ai_student_history');
+    renderHistoryList();
+});
+
+/* ==================== 初始化 ==================== */
+renderHistoryList();
+const s = loadSettings();
+if (!s.apiKey) {
+    setTimeout(() => {
+        settingsModal.classList.add('show');
+    }, 600);
+}
+</script>
+</body>
+</html>
