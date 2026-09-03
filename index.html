@@ -889,6 +889,24 @@ body {
 .dlg-options button:disabled { cursor: default; opacity: .75; }
 .dlg-options button.correct { background: rgba(46,197,113,.3); border-color: #2ec571; color: #b8ffd9; }
 .dlg-options button.wrong { background: rgba(229,83,75,.3); border-color: #e5534b; color: #ffc4bf; }
+.ex-answer { display: flex; gap: 8px; margin-top: 14px; }
+.ex-answer input {
+    flex: 1; min-width: 0;
+    border: 1.5px solid rgba(255,215,106,.55);
+    background: rgba(255,215,106,.08);
+    color: #ffe9ad;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 15px; font-family: inherit; outline: none;
+}
+.ex-answer input::placeholder { color: rgba(255,233,173,.55); }
+.ex-answer input:focus { border-color: #ffd76a; }
+.ex-answer button {
+    border: none; border-radius: 12px; padding: 0 22px;
+    font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+    background: linear-gradient(135deg, #ffb13b, #ff5a4d); color: #fff;
+}
+.ex-answer button:hover { filter: brightness(1.1); }
 .buzz-btn {
     margin-top: 14px;
     align-self: center;
@@ -984,7 +1002,7 @@ body {
 .end-btns .primary:hover { background: var(--accent-2); }
 
 @media (max-width: 640px) {
-    .sprite { height: 34vh; bottom: 38vh; right: 2%; }
+    .sprite { height: 34vh; bottom: 2.5vh; right: 2%; }
     .dialogue { height: 52vh; padding: 14px 16px; }
     .dlg-options { grid-template-columns: 1fr; }
     .score-bar { width: 22vw; }
@@ -1135,6 +1153,7 @@ body {
                             <button data-v="中等" class="on">📗 中等</button>
                             <button data-v="困难">🎓 困难</button>
                             <button data-v="地狱">🔬 地狱</button>
+                            <button data-v="EX-地狱">💀 EX-地狱</button>
                         </div>
                     </div>
 
@@ -1204,6 +1223,10 @@ body {
         <div class="q-subject" id="qSubject"></div>
         <div class="q-text" id="qText"></div>
         <div class="dlg-options" id="dlgOptions"></div>
+        <div class="ex-answer hidden" id="exAnswer">
+        <input type="text" id="exAnswerInput" placeholder="输入你的答案……" maxlength="60">
+        <button id="exAnswerSubmit">提交</button>
+    </div>
     </div>
     <div class="talk-scroll">
         <div class="dlg-speaker" id="dlgSpeaker">系统</div>
@@ -2351,6 +2374,19 @@ function parseQuestion(raw) {
         return o;
     } catch (e) { return null; }
 }
+function parseExQuestion(raw) {
+    let t = String(raw || '').trim().replace(/```(?:json)?/gi, '').trim();
+    const i = t.indexOf('{'), j = t.lastIndexOf('}');
+    if (i < 0 || j <= i) return null;
+    try {
+        const o = JSON.parse(t.slice(i, j + 1));
+        if (!o.question || !o.answer) return null;
+        o.isEx = true;
+        o.type = o.type || '主观题';
+        return o;
+    } catch (e) { return null; }
+}
+function isExMode() { return G.qDiff === 'EX-地狱'; }
 async function genQuestion() {
     const subs = [...G.subjects];
    // 规避连续同科目：最近出过的科目优先避开
@@ -2362,8 +2398,24 @@ async function genQuestion() {
     const historyBlock = G.asked.length
         ? '\n\n最近已出过的题目（务必规避，禁止重复同一主题或换个说法重出）：\n' +
           G.asked.slice(-8).map((a, i) => `${i + 1}. [${a.subject}] ${a.topic}`).join('\n')
-        : '';
-    
+        : ''; if (isExMode()) {
+        
+        const msgs = [
+            { role: 'system', content: '你是专业的竞赛出题人，只输出 JSON，不要输出任何其他文字。' },
+            { role: 'user', content: `请围绕学科【${subj}】出一道「EX-地狱」难度的题目，题型只能是【主观题】或【填空题】，禁止出选择题、禁止任何选项。难度：大学以上乃至前沿科学水平，考查深度理解。${historyBlock}\n\n严格输出 JSON：{"type":"主观题","question":"题干","answer":"参考答案","explanation":"一句话解析"}` }
+        ];
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const q = parseExQuestion(await callAI(msgs, 700, { noThink: !G.think, web: G.web }));
+            if (q) {
+                q.subject = subj;
+                G.asked.push({ subject: subj, topic: q.question.replace(/\s+/g, ' ').slice(0, 30) });
+                if (G.asked.length > 20) G.asked.shift();
+                return q;
+            }
+        }
+        return null;
+    }
+
     const msgs = [
         { role: 'system', content: '你是专业的竞赛出题人，只输出 JSON，不要输出任何其他文字。' },
        { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。${historyBlock}\n\n严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` }
@@ -2384,10 +2436,15 @@ async function genQuestion() {
 /* ---- 流程 ---- */
 function showQuestion() {
     const q = G.question;
-    $('qSubject').textContent = '【' + q.subject + '】';
+   $('qSubject').textContent = '【' + q.subject + '】' + (q.isEx ? ' · ' + q.type : '');
     $('qText').textContent = q.question;
       $('qText').textContent = q.question;
-    renderOptions();   // ← 渲染四个选项
+  if (q.isEx) {
+        $('dlgOptions').innerHTML = '';
+        hideExAnswer();
+    } else {
+        renderOptions();   // ← 渲染四个选项
+    }
     $('qExplain').classList.add('hidden');
     $('qExplain').textContent = '';
 }
@@ -2395,7 +2452,7 @@ function revealExplanation() {
     const q = G.question;
     if (!q) return;
     let txt = '';
-    if (q.answer) txt += '正确答案：' + q.answer;
+   if (q.answer) txt += (q.isEx ? '参考答案：' : '正确答案：') + q.answer;
     if (q.explanation) txt += (txt ? '\n' : '') + '解析：' + q.explanation;
     $('qExplain').textContent = txt;
     $('qExplain').classList.remove('hidden');
@@ -2446,6 +2503,7 @@ function openBuzz() {
     startAnswerTimer(30, () => {
         if (G.phase === 'buzz' || G.phase === 'playerAnswer') {
             clearGTimers();
+            hideExAnswer();
             $('buzzBtn').classList.add('hidden');
             enableOptions(false);
            G.phase = 'timeout';
@@ -2492,7 +2550,7 @@ function playerBuzz() {
     $('buzzBtn').classList.add('hidden');
     setSpeaker(G.playerName);
     typeText('我抢！这题让我来！');
-    enableOptions(true);
+      if (G.question.isEx) showExAnswer(); else enableOptions(true);
 }
 function playerAnswer(letter) {
     if (G.phase !== 'playerAnswer') return;
@@ -2515,7 +2573,49 @@ function playerAnswer(letter) {
         gTimer(aiStealAnswer, 2000);
     }
 }
-
+function showExAnswer() {
+    $('exAnswer').classList.remove('hidden');
+    $('exAnswerInput').value = '';
+    $('exAnswerInput').focus();
+}
+function hideExAnswer() {
+    $('exAnswer').classList.add('hidden');
+    $('exAnswerInput').value = '';
+}
+async function judgeAnswer(q, text) {
+    const raw = await callAI([
+        { role: 'system', content: '你是阅卷老师。判断学生答案是否与参考答案一致（主观题意思对即可，填空题需基本一致）。只输出一个字：对 或 错。' },
+        { role: 'user', content: `题型：${q.type}\n题目：${q.question}\n参考答案：${q.answer}\n学生答案：${text}` }
+    ], 40, { noThink: true });
+    const r = String(raw || '').trim();
+    return r.startsWith('对') || r.includes('正确');
+}
+async function playerAnswerEx() {
+    if (G.phase !== 'playerAnswer') return;
+    const text = $('exAnswerInput').value.trim();
+    if (!text) { $('exAnswerInput').focus(); return; }
+    G.phase = 'judging';
+    clearGTimers();
+    hideExAnswer();
+    setSpeaker(G.playerName);
+    typeText('我的答案：' + text);
+    const correct = await judgeAnswer(G.question, text);
+    if (G.phase !== 'judging') return;
+    if (correct) {
+        addScore('player', +1);
+        setSprite('lose');
+        setSpeaker('小雅', true);
+        typeText(pick(['唔……算你厉害！', '哼，这题只是让你先下一城！', '可恶……下次一定是我抢到！']));
+        revealExplanation();
+        finishRound();
+    } else {
+        if (!G.steal) addScore('player', -1);
+        setSprite('win');
+        setSpeaker('小雅', true);
+        typeText(pick(['答错啦！哼哼，机会归我了～', '就这？看本小姐给你示范一下！']));
+        gTimer(aiStealAnswer, 2000);
+    }
+}
 /* ---- 小雅抢答与作答 ---- */
 function aiBuzz() {
     if (G.phase !== 'buzz') return;
@@ -2552,11 +2652,31 @@ async function xiaoyaSpeak(q, letter, willCorrect) {
      const raw = await callAI([{ role: 'system', content: sys }, { role: 'user', content: usr }], 160, { noThink: !G.think });
     return String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 90);
 }
+async function xiaoyaSpeakEx(q, willCorrect) {
+    const sys = '你是小雅，高材生，正在和玩家抢答对战。性格：轻敌、傲娇、不服输。口癖："哼"、"就这？"、"本小姐"。';
+    const usr = willCorrect
+        ? `题目（${q.type}）：${q.question}\n参考答案：${q.answer}\n你抢答成功且答对了。输出格式：第一行只写"我的答案：XXX"（XXX为简洁准确的回答，15字内），第二行写一句傲娇台词（30字内）。`
+        : `题目（${q.type}）：${q.question}\n参考答案：${q.answer}\n你抢答成功但这次答错了。输出格式：第一行只写"我的答案：XXX"（XXX为一个看似合理但错误的答案，15字内），第二行写一句自信台词（30字内）。`;
+    const raw = await callAI([{ role: 'system', content: sys }, { role: 'user', content: usr }], 160, { noThink: !G.think });
+    return String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+}
 async function aiAnswer(isSteal) {
     const q = G.question;
     const cfg = MASTER_CFG[G.master];
     const willCorrect = Math.random() >= cfg.wrongRate;
     const letter = willCorrect ? q.answer : pickWrong(q.answer);
+    if (q.isEx) {
+        let quip = '';
+        try { quip = await xiaoyaSpeakEx(q, willCorrect); } catch (e) { quip = ''; }
+        if (G.phase !== 'aiAnswer') return;
+        if (!quip) quip = willCorrect ? q.answer : '（这题本小姐一时想不起来了……）';
+        setSprite('normal');
+        setSpeaker('小雅', true);
+        await typeText(quip);
+        if (G.phase !== 'aiAnswer') return;
+        gTimer(() => resolveAiAnswerEx(willCorrect, isSteal), 1200);
+        return;
+    }
     let quip = '';
     try { quip = await xiaoyaSpeak(q, letter, willCorrect); } catch (e) { quip = ''; }
     if (G.phase !== 'aiAnswer') return;
@@ -2595,18 +2715,45 @@ function resolveAiAnswer(letter, correct, isSteal) {
         }
     }
 }
+    function resolveAiAnswerEx(correct, isSteal) {
+    if (G.phase !== 'aiAnswer') return;
+    const q = G.question;
+    if (correct) {
+        addScore('ai', +1);
+        setSprite('normal');
+        setSpeaker('系统');
+        typeText(`小雅回答正确！参考答案：${q.answer}。`);
+        revealExplanation();
+        finishRound();
+    } else {
+        setSprite('surprised');
+        setSpeaker('小雅', true);
+        typeText(pick(['欸？！怎、怎么会错……', '不可能！我明明算过的……！']));
+        if (isSteal) {
+            gTimer(() => {
+                setSpeaker('系统');
+                typeText(`参考答案：${q.answer}。`);
+                revealExplanation();
+                finishRound();
+            }, 1600);
+        } else {
+            addScore('ai', -1);
+            gTimer(playerStealChance, 2200);
+        }
+    }
+}
 function playerStealChance() { // 小雅答错，机会交给你，答错不扣分
     if (G.phase === 'over') return;
     G.phase = 'playerAnswer';
     G.steal = true;
     setSprite('normal');
     setSpeaker('系统');
-    typeText('小雅答错了！机会交给你，答错不扣分。请选择答案：');
-    enableOptions(true);
+    typeText(G.question.isEx ? '小雅答错了！机会交给你，答错不扣分。请作答：' : '小雅答错了！机会交给你，答错不扣分。请选择答案：');
+if (G.question.isEx) showExAnswer(); else enableOptions(true);
     startAnswerTimer(30, () => {
         if (G.phase === 'playerAnswer') {
             clearGTimers();
-            enableOptions(false);
+             if (G.question.isEx) hideExAnswer(); else enableOptions(false);
               G.phase = 'timeout';
             markOptions(null);
             setSpeaker('系统');
@@ -2703,6 +2850,10 @@ bindGameToggle('gThinkToggle', 'think');
 bindGameToggle('gWebToggle', 'web');
 $('gameStartBtn').addEventListener('click', startGame);
 $('buzzBtn').addEventListener('click', playerBuzz);
+$('exAnswerSubmit').addEventListener('click', playerAnswerEx);
+$('exAnswerInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); playerAnswerEx(); }
+});
 $('nextBtn').addEventListener('click', nextQuestion);
 $('againBtn').addEventListener('click', () => { $('gameOver').classList.add('hidden'); startGame(); });
 $('endBackBtn').addEventListener('click', () => {
