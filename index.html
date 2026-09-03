@@ -993,6 +993,11 @@ body {
                     <span class="pt-label">📖 <span class="txt">预习模式</span></span>
                     <div class="switch"></div>
                 </div>
+                <select class="diff-select" id="thinkDepthSelect" title="思考深度（仅深度思考开启时生效）"></select>
+        <div class="preview-toggle" id="deepThinkToggle" title="开启后：AI 会进行深度思考（推理）；关闭后：全局取消思考，直接输出结果">
+            <span class="pt-label">🧠 <span class="txt">深度思考</span></span>
+            <div class="switch"></div>
+        </div>
                 <span class="cost-badge" id="costDisplay">💰 0.0000 元</span>
             </div>
         </div>
@@ -1282,6 +1287,8 @@ let state = {
     messages: [],           // {role, text, images:[], score}
     preStudy: false,        // 预习模式
     webSearch: false,       // 联网模式
+    deepThink: localStorage.getItem('ai_student_deep_think') !== 'off', // 深度思考（默认开启）
+thinkDepth: localStorage.getItem('ai_student_think_depth') || 'medium', // 思考深度 low/medium/high
     totalCost: 0,
     isProcessing: false,
     sessionId: null,
@@ -1298,6 +1305,7 @@ const imgBtn = $('imgBtn'), imgInput = $('imgInput'), pendingImgsEl = $('pending
 const topSubject = $('topSubject');
 const sbMask = $('sbMask');
 const previewToggle = $('previewToggle'), costDisplay = $('costDisplay');
+const deepThinkToggle = $('deepThinkToggle'), thinkDepthSelect = $('thinkDepthSelect');
 const historyList = $('historyList');
 
 /* ==================== 设置存取 ==================== */
@@ -1665,6 +1673,53 @@ webToggle.addEventListener('click', () => {
         : '🌐 联网模式已关闭');
 });
 
+/* ==================== 深度思考模式 ==================== */
+const THINK_DEPTHS = [
+    { value: 'low', label: '🧠 低' },
+    { value: 'medium', label: '🧠 中' },
+    { value: 'high', label: '🧠 高' },
+];
+THINK_DEPTHS.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.value;
+    opt.textContent = t.label;
+    thinkDepthSelect.appendChild(opt);
+});
+thinkDepthSelect.value = state.thinkDepth;
+
+function applyDeepThinkUI() {
+    deepThinkToggle.classList.toggle('on', state.deepThink);
+    thinkDepthSelect.disabled = !state.deepThink;
+}
+deepThinkToggle.addEventListener('click', () => {
+    state.deepThink = !state.deepThink;
+    localStorage.setItem('ai_student_deep_think', state.deepThink ? 'on' : 'off');
+    applyDeepThinkUI();
+    if (state.subject) {
+        addSystemNote(state.deepThink
+            ? '🧠 深度思考已开启：AI 会先推理再作答（思考深度：' + (state.thinkDepth === 'low' ? '低' : state.thinkDepth === 'high' ? '高' : '中') + '）'
+            : '🧠 深度思考已关闭：全局取消思考，AI 将直接输出，不再进行长思考');
+    }
+});
+thinkDepthSelect.addEventListener('change', () => {
+    state.thinkDepth = thinkDepthSelect.value;
+    localStorage.setItem('ai_student_think_depth', state.thinkDepth);
+    if (state.subject && state.deepThink) {
+        addSystemNote('🧠 思考深度已调整为「' + (state.thinkDepth === 'low' ? '低' : state.thinkDepth === 'high' ? '高' : '中') + '」');
+    }
+});
+
+// 生成注入到 system 的思考控制指令
+function thinkingDirective() {
+    if (!state.deepThink) {
+        return '【思考控制指令】本轮严禁任何内部推理、思考或分析过程，直接输出最终答复，不得输出任何思考内容、推理步骤或中间过程。\n\n';
+    }
+    if (state.thinkDepth === 'low') {
+        return '【思考控制指令】本轮思考尽量简短，禁止过长的推理链，快速给出答复即可。\n\n';
+    }
+    return '';
+}
+
 /* ==================== 消息渲染 ==================== */
 function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
 
@@ -1779,7 +1834,22 @@ async function callAI(messagesPayload, maxTokens = 2000) {
         localStorage.setItem('ai_student_api_key', apiKey);
     }
 
-    const bodyObj = { model, messages: messagesPayload, max_tokens: maxTokens, temperature: 0.75 };
+   // 深度思考：注入全局思考指令 + 请求参数
+const messages = messagesPayload.map(m => ({ ...m }));
+const directive = thinkingDirective();
+if (directive && messages[0] && messages[0].role === 'system') {
+    messages[0] = { role: 'system', content: directive + messages[0].content };
+}
+
+const bodyObj = { model, messages, max_tokens: maxTokens, temperature: 0.75 };
+if (state.deepThink) {
+    // 开启深度思考：告知服务商启用推理，并按深度指定推理强度
+    bodyObj.enable_thinking = true;
+    bodyObj.reasoning_effort = state.thinkDepth;
+} else {
+    // 关闭深度思考：全局取消思考，直接出字
+    bodyObj.enable_thinking = false;
+}
     if (state.webSearch) {
         // 联网搜索：兼容主流 OpenAI 兼容服务商的写法（不支持的厂商会忽略或报错）
         bodyObj.web_search_options = { search_context_size: 'medium' };
@@ -2497,6 +2567,7 @@ $('gameBackBtn').addEventListener('click', () => {
 
 /* ==================== 初始化 ==================== */
 renderHistoryList();
+applyDeepThinkUI();
 const s = loadSettings();
 if (!s.apiKey) {
     setTimeout(() => {
