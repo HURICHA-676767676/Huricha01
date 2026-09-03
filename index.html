@@ -2356,6 +2356,8 @@ function showQuestion() {
     const q = G.question;
     $('qSubject').textContent = '【' + q.subject + '】';
     $('qText').textContent = q.question;
+      $('qText').textContent = q.question;
+    renderOptions();   // ← 渲染四个选项
     $('qExplain').classList.add('hidden');
     $('qExplain').textContent = '';
 }
@@ -2388,7 +2390,7 @@ async function nextQuestion() {
     $('qExplain').classList.add('hidden');
     $('qExplain').textContent = '';
     $('dlgText').textContent = '';
-    $('dlgText').classList.remove('xiaoya');
+ $('dlgText').classList.remove('xiaoya', 'question');
     setSpeaker('系统');
     setSprite('normal');
     typeText('出题中……');
