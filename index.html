@@ -817,6 +817,15 @@ body {
     transition: opacity .18s;
     pointer-events: none;
 }
+.sprite.bob { animation: bob .5s cubic-bezier(.36,.07,.19,.97); }
+@keyframes bob {
+    0%   { transform: translateY(0); }
+    25%  { transform: translateY(-14px); }
+    45%  { transform: translateY(7px); }
+    65%  { transform: translateY(-7px); }
+    85%  { transform: translateY(3px); }
+    100% { transform: translateY(0); }
+}
 
 /* 对话框（galgame 风，70% 透明深蓝，2:1 宽长比） */
 .dialogue {
@@ -833,7 +842,7 @@ body {
     z-index: 6;
     display: flex; flex-direction: column;
     box-shadow: 0 16px 50px rgba(0,0,0,.45);
-    overflow-y: auto;
+    overflow: hidden;
 }
 .dlg-speaker {
     font-size: 13px; font-weight: 700;
@@ -892,6 +901,56 @@ body {
 }
 .buzz-btn:hover:not(:disabled) { filter: brightness(1.12); }
 .buzz-btn:disabled { background: rgba(120,140,180,.3); box-shadow: none; cursor: not-allowed; animation: none; color: rgba(255,255,255,.5); }
+
+/* 题目固定区 + 对话滚动区 + 下一题按钮 */
+.q-panel {
+    flex-shrink: 0;
+    max-height: 62%;
+    overflow-y: auto;
+    background: rgba(8, 20, 46, .5);
+    border: 1px solid rgba(120,160,255,.28);
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 12px;
+}
+.q-subject {
+    font-size: 12px; font-weight: 700;
+    color: #8fb4ff;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+.q-text {
+    font-size: clamp(18px, 2.4vw, 24px);
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    text-shadow: 0 0 16px rgba(111,227,255,.4), 0 2px 6px rgba(0,0,0,.5);
+}
+.talk-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.q-explain {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-left: 3px solid #2ec571;
+    background: rgba(46,197,113,.12);
+    border-radius: 8px;
+    color: #b8ffd9;
+    font-size: 14.5px; line-height: 1.7;
+    white-space: pre-wrap;
+}
+.next-btn {
+    margin-top: 12px;
+    align-self: center;
+    padding: 12px 44px;
+    border: none; border-radius: 40px;
+    background: linear-gradient(135deg, #3b6cff, #6fe3ff);
+    color: #fff; font-size: 16px; font-weight: 800;
+    letter-spacing: 2px;
+    cursor: pointer; font-family: inherit;
+    box-shadow: 0 6px 20px rgba(59,108,255,.45);
+    transition: .15s;
+}
+.next-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
 
 /* 结局画面 */
 .game-over {
@@ -1124,10 +1183,18 @@ body {
                 <img class="sprite" id="spriteImg" src="assets/normal.png" alt="小雅">
 
                 <div class="dialogue">
-                    <div class="dlg-speaker" id="dlgSpeaker">系统</div>
-                    <div class="dlg-text" id="dlgText"></div>
-                    <div class="dlg-options" id="dlgOptions"></div>
+                     <div class="q-panel" id="qPanel">
+        <div class="q-subject" id="qSubject"></div>
+        <div class="q-text" id="qText"></div>
+        <div class="dlg-options" id="dlgOptions"></div>
+    </div>
+    <div class="talk-scroll">
+        <div class="dlg-speaker" id="dlgSpeaker">系统</div>
+        <div class="dlg-text" id="dlgText"></div>
+        <div class="q-explain hidden" id="qExplain"></div>
+    </div>
                     <button class="buzz-btn hidden" id="buzzBtn">⚡ 抢答！</button>
+     <button class="next-btn hidden" id="nextBtn">下一题 →</button>
                 </div>
 
                 <!-- 结局画面 -->
@@ -2179,12 +2246,18 @@ const MASTER_CFG = {
 const G = {
     qDiff: '中等', master: '15', subjects: new Set(), playerName: '玩家',
     playerScore: 0, aiScore: 0, target: 13,
-    question: null, phase: 'entry', steal: false, timers: [],
+    question: null, phase: 'entry', steal: false, timers: [], asked: [],
 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function gTimer(fn, ms) { const t = setTimeout(fn, ms); G.timers.push(t); return t; }
 function clearGTimers() { G.timers.forEach(t => { clearTimeout(t); clearInterval(t); }); G.timers = []; }
-function setSprite(name) { $('spriteImg').src = 'assets/' + name + '.png'; }
+function setSprite(name) {
+    const el = $('spriteImg');
+    el.src = 'assets/' + name + '.png';
+    el.classList.remove('bob');
+    void el.offsetWidth;
+    el.classList.add('bob');
+}
 function setSpeaker(name, isXiaoya) {
     const sp = $('dlgSpeaker');
     sp.textContent = name;
@@ -2250,28 +2323,73 @@ function parseQuestion(raw) {
 }
 async function genQuestion() {
     const subs = [...G.subjects];
-    const subj = pick(subs);
+   // 规避连续同科目：最近出过的科目优先避开
+    const recentSubjects = G.asked.slice(-3).map(a => a.subject);
+    let pool = subs.filter(s => !recentSubjects.includes(s));
+    if (!pool.length) pool = subs;
+    const subj = pick(pool);
+
+    const historyBlock = G.asked.length
+        ? '\n\n最近已出过的题目（务必规避，禁止重复同一主题或换个说法重出）：\n' +
+          G.asked.slice(-8).map((a, i) => `${i + 1}. [${a.subject}] ${a.topic}`).join('\n')
+        : '';
+    
     const msgs = [
         { role: 'system', content: '你是专业的竞赛出题人，只输出 JSON，不要输出任何其他文字。' },
-        { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` },
-    ];
+       { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。${historyBlock}\n\n严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` },
     for (let attempt = 0; attempt < 2; attempt++) {
         const q = parseQuestion(await callAI(msgs, 700));
-        if (q) { q.subject = subj; return q; }
+        
+        if (q) {
+            q.subject = subj;
+            G.asked.push({ subject: subj, topic: q.question.replace(/\s+/g, ' ').slice(0, 30) });
+            if (G.asked.length > 20) G.asked.shift();
+            return q;
+        }
     }
     return null;
 }
 
 /* ---- 流程 ---- */
+function showQuestion() {
+    const q = G.question;
+    $('qSubject').textContent = '【' + q.subject + '】';
+    $('qText').textContent = q.question;
+    $('qExplain').classList.add('hidden');
+    $('qExplain').textContent = '';
+}
+function revealExplanation() {
+    const q = G.question;
+    if (!q) return;
+    let txt = '';
+    if (q.answer) txt += '正确答案：' + q.answer;
+    if (q.explanation) txt += (txt ? '\n' : '') + '解析：' + q.explanation;
+    $('qExplain').textContent = txt;
+    $('qExplain').classList.remove('hidden');
+}
+function showNextBtn() { $('nextBtn').classList.remove('hidden'); }
+function hideNextBtn() { $('nextBtn').classList.add('hidden'); }
+function finishRound() {
+    if (checkEnd()) return; // 已分胜负则显示结算画面，不再出「下一题」
+    G.phase = 'done';
+    showNextBtn();
+}
+
 async function nextQuestion() {
     clearGTimers();
     G.phase = 'loading';
     G.steal = false;
     $('dlgOptions').innerHTML = '';
     $('buzzBtn').classList.add('hidden');
-    $('dlgText').classList.remove('question');
-    setSprite('normal');
+   hideNextBtn();
+    $('qSubject').textContent = '';
+    $('qText').textContent = '';
+    $('qExplain').classList.add('hidden');
+    $('qExplain').textContent = '';
+    $('dlgText').textContent = '';
+    $('dlgText').classList.remove('xiaoya');
     setSpeaker('系统');
+    setSprite('normal');
     typeText('出题中……');
     let q = null;
     try { q = await genQuestion(); } catch (e) { q = null; }
@@ -2283,10 +2401,10 @@ async function nextQuestion() {
     }
     G.question = q;
     G.phase = 'showing';
-    setSpeaker(`【${q.subject}】`);
+     showQuestion();
     $('dlgText').classList.add('question');
-    await typeText(q.question, 34);
-    renderOptions();
+    setSpeaker('系统');
+    typeText('题目已出，准备抢答！');
     openBuzz();
 }
 function openBuzz() {
@@ -2297,10 +2415,12 @@ function openBuzz() {
             clearGTimers();
             $('buzzBtn').classList.add('hidden');
             enableOptions(false);
-            $('dlgText').classList.remove('question');
+           G.phase = 'timeout';
+            markOptions(null);
             setSpeaker('系统');
-            typeText('时间到！本题结束，进入下一题。');
-            gTimer(nextQuestion, 2400);
+            typeText('时间到！本题结束。');
+            revealExplanation();
+            finishRound();
         }
     });
     const cfg = MASTER_CFG[G.master];
@@ -2347,16 +2467,16 @@ function playerAnswer(letter) {
     clearGTimers();
     const correct = letter === G.question.answer;
     markOptions(letter);
-    $('dlgText').classList.remove('question');
     if (correct) {
         addScore('player', +1);
-        setSprite('lose'); // 小雅不甘 2 秒
+        setSprite('lose'); // 小雅不甘
         setSpeaker('小雅', true);
         typeText(pick(['唔……算你厉害！', '哼，这题只是让你先下一城！', '可恶……下次一定是我抢到！']));
-        gTimer(() => { if (!checkEnd()) { setSprite('normal'); nextQuestion(); } }, 2200);
+       revealExplanation();
+    finishRound();
     } else {
         if (!G.steal) addScore('player', -1);
-        setSprite('win'); // 小雅得意 2 秒
+       setSprite('win'); // 小雅得意
         setSpeaker('小雅', true);
         typeText(pick(['答错啦！哼哼，机会归我了～', '就这？看本小姐给你示范一下！']));
         gTimer(aiStealAnswer, 2000);
@@ -2422,18 +2542,20 @@ function resolveAiAnswer(letter, correct, isSteal) {
         addScore('ai', +1);
         setSprite('normal');
         setSpeaker('系统');
-        typeText(`小雅回答正确！正确答案是 ${q.answer}。${q.explanation || ''}`);
-        if (!checkEnd()) gTimer(nextQuestion, 3000);
+        typeText(`小雅回答正确！正确答案是 ${q.answer}。`);
+    revealExplanation();
+    finishRound();
     } else {
         setSprite('surprised'); // 答错后的慌张
         setSpeaker('小雅', true);
         typeText(pick(['欸？！怎、怎么会错……', '不可能！我明明算过的……！']));
-        if (isSteal) { // 接手答错不扣分，直接下一题
+  if (isSteal) { // 接手答错不扣分
             gTimer(() => {
                 setSpeaker('系统');
-                typeText(`正确答案是 ${q.answer}。${q.explanation || ''}`);
-                gTimer(nextQuestion, 3000);
-            }, 2000);
+               typeText(`正确答案是 ${q.answer}。`);
+            revealExplanation();
+            finishRound();
+        }, 1600);
         } else {
             addScore('ai', -1);
             gTimer(playerStealChance, 2200); // 机会交给玩家
@@ -2452,9 +2574,12 @@ function playerStealChance() { // 小雅答错，机会交给你，答错不扣�
         if (G.phase === 'playerAnswer') {
             clearGTimers();
             enableOptions(false);
+              G.phase = 'timeout';
+            markOptions(null);
             setSpeaker('系统');
-            typeText('时间到！本题结束，进入下一题。');
-            gTimer(nextQuestion, 2400);
+          typeText('时间到！本题结束。');
+            revealExplanation();
+            finishRound();
         }
     });
 }
@@ -2516,6 +2641,7 @@ function startGame() {
     G.playerName = $('playerNameInput').value.trim() || '玩家';
     localStorage.setItem('playerName', G.playerName);
     G.playerScore = 0; G.aiScore = 0; renderScore();
+    G.asked = []; // 重置出题上下文
     $('playerNameLbl').textContent = G.playerName;
     $('arenaInfo').textContent = `题目难度：${G.qDiff} · 对手强度：MASTER ${G.master} · 先到 ${G.target} 分获胜`;
     $('gameEntry').classList.add('hidden');
@@ -2535,6 +2661,7 @@ bindChipGroup('qDiffChips', v => G.qDiff = v);
 bindChipGroup('mChips', v => G.master = v);
 $('gameStartBtn').addEventListener('click', startGame);
 $('buzzBtn').addEventListener('click', playerBuzz);
+$('nextBtn').addEventListener('click', nextQuestion);
 $('againBtn').addEventListener('click', () => { $('gameOver').classList.add('hidden'); startGame(); });
 $('endBackBtn').addEventListener('click', () => {
     $('gameOver').classList.add('hidden');
