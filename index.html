@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>教育学ai趣味小网站</title>
+<title>AI学生 · 讲课评估</title>
 <style>
 /* ================= 主题变量 ================= */
 :root {
@@ -484,6 +484,19 @@ body {
 }
 .modal-btns .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .modal-btns .primary:hover { background: var(--accent-2); }
+.preset-select {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    width: 100%;
+}
+.preset-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* 图片查看器 */
 .img-viewer {
@@ -655,6 +668,267 @@ body {
 .lv-3 .lv-badge { background: rgba(229,83,75,.12); color: var(--danger); }
 .cc-gen-hint { font-size: 12px; color: var(--text-3); text-align: center; margin-top: 10px; }
 
+/* ================= 答题挑战（一站到底） ================= */
+.hidden { display: none !important; }
+.chat-view { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.game-view { height: 100%; min-height: 0; position: relative; }
+
+/* 入口设置 */
+.game-entry {
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 34px 18px;
+    background: linear-gradient(rgba(8,16,38,.62), rgba(8,16,38,.62)), url('assets/bg_classroom.png') center/cover;
+}
+.ge-card {
+    width: 560px; max-width: 94vw;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 28px 30px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    animation: fadeUp .4s ease;
+}
+.ge-card h2 { font-size: 21px; margin-bottom: 4px; }
+.ge-sub { font-size: 13px; color: var(--text-3); margin-bottom: 20px; }
+.ge-section { margin-bottom: 18px; }
+.ge-label { font-size: 13.5px; font-weight: 700; margin-bottom: 9px; display: flex; align-items: baseline; gap: 8px; }
+.ge-label span { font-size: 11.5px; color: var(--text-3); font-weight: 400; }
+.ge-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ge-chips button {
+    border: 1.5px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text-2);
+    border-radius: 12px;
+    padding: 9px 16px;
+    font-size: 13.5px; font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .13s;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.ge-chips button small { font-size: 10.5px; color: var(--text-3); font-weight: 400; }
+.ge-chips button:hover { border-color: var(--accent); }
+.ge-chips button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.ge-chips button.on small { color: var(--accent); opacity: .8; }
+.ge-chips button.g-add { border-style: dashed; }
+.ge-name-input {
+    width: 200px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+}
+.ge-name-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ge-start {
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px;
+    border: none; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), #7ba2ff);
+    color: #fff; font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    box-shadow: 0 6px 20px rgba(59,108,255,.4);
+    transition: .15s;
+}
+.ge-start:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.ge-start:disabled { opacity: .5; cursor: not-allowed; }
+.ge-back { text-align: center; margin-top: 14px; font-size: 13px; color: var(--text-3); cursor: pointer; }
+.ge-back:hover { color: var(--text); }
+
+/* 赛场 */
+.arena {
+    position: relative;
+    height: 100%;
+    background: url('assets/bg_classroom.png') center/cover;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.arena-top {
+    position: relative; z-index: 5;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+}
+.arena-exit {
+    border: 1px solid rgba(255,255,255,.35);
+    background: rgba(8,16,38,.55);
+    color: #fff;
+    border-radius: 10px;
+    padding: 7px 14px;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+    backdrop-filter: blur(4px);
+}
+.arena-exit:hover { background: rgba(8,16,38,.8); }
+.arena-info { font-size: 12.5px; color: rgba(255,255,255,.85); text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+
+/* 计分 + 计时器 */
+.score-row {
+    position: relative; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    gap: 18px;
+    padding: 4px 16px;
+}
+.score-side { display: flex; align-items: center; gap: 10px; }
+.sc-name { color: #fff; font-weight: 700; font-size: 15px; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.sc-num { color: #ffd76a; font-weight: 800; font-size: 20px; min-width: 26px; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.score-bar {
+    width: min(220px, 26vw); height: 14px;
+    border-radius: 10px;
+    background: rgba(8,16,38,.55);
+    border: 1px solid rgba(255,255,255,.3);
+    overflow: hidden;
+}
+.score-bar .fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #3b6cff, #6fe3ff);
+    border-radius: 10px;
+    transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.score-bar .fill.ai { background: linear-gradient(90deg, #ff9d3b, #ffd76a); }
+.timer {
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    background: rgba(8,16,38,.7);
+    border: 2.5px solid rgba(255,255,255,.45);
+    color: #fff;
+    font-size: 24px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    text-shadow: 0 1px 4px rgba(0,0,0,.6);
+    backdrop-filter: blur(4px);
+}
+.timer.urgent { border-color: #ff5a4d; color: #ff8d84; animation: pulse .6s infinite alternate; }
+@keyframes pulse { from { transform: scale(1) } to { transform: scale(1.09) } }
+
+/* 小雅立绘 */
+.sprite {
+    position: absolute;
+    right: 3.5%;
+    bottom: 26vh;
+    height: 46vh;
+    z-index: 4;
+    filter: drop-shadow(0 10px 24px rgba(0,0,0,.45));
+    transition: opacity .18s;
+    pointer-events: none;
+}
+
+/* 对话框（galgame 风，70% 透明深蓝，2:1 宽长比） */
+.dialogue {
+    position: absolute;
+    left: 50%; bottom: 2.5vh;
+    transform: translateX(-50%);
+    width: min(880px, 94%);
+    height: min(44vh, 440px); /* 宽长比约 2:1 */
+    background: rgba(10, 24, 60, 0.7);
+    border: 1.5px solid rgba(120,160,255,.4);
+    border-radius: 20px;
+    padding: 20px 26px;
+    backdrop-filter: blur(6px);
+    z-index: 6;
+    display: flex; flex-direction: column;
+    box-shadow: 0 16px 50px rgba(0,0,0,.45);
+    overflow-y: auto;
+}
+.dlg-speaker {
+    font-size: 13px; font-weight: 700;
+    color: #8fb4ff;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+.dlg-speaker.xiaoya { color: #ffd76a; }
+.dlg-text {
+    font-size: 16px; line-height: 1.75;
+    color: #e8efff;
+    white-space: pre-wrap;
+}
+.dlg-text.xiaoya { color: #ffd76a; }
+.dlg-text.question {
+    font-size: clamp(19px, 2.6vw, 27px);
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 0 18px rgba(111,227,255,.55), 0 2px 6px rgba(0,0,0,.5);
+    line-height: 1.6;
+}
+.dlg-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+}
+.dlg-options button {
+    border: 1.5px solid rgba(255,215,106,.55);
+    background: rgba(255,215,106,.08);
+    color: #ffe9ad;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: .13s;
+}
+.dlg-options button:hover:not(:disabled) { background: rgba(255,215,106,.22); transform: translateY(-1px); }
+.dlg-options button:disabled { cursor: default; opacity: .75; }
+.dlg-options button.correct { background: rgba(46,197,113,.3); border-color: #2ec571; color: #b8ffd9; }
+.dlg-options button.wrong { background: rgba(229,83,75,.3); border-color: #e5534b; color: #ffc4bf; }
+.buzz-btn {
+    margin-top: 14px;
+    align-self: center;
+    padding: 13px 54px;
+    border: none; border-radius: 40px;
+    background: linear-gradient(135deg, #ffb13b, #ff5a4d);
+    color: #fff; font-size: 18px; font-weight: 800;
+    letter-spacing: 4px;
+    cursor: pointer; font-family: inherit;
+    box-shadow: 0 6px 24px rgba(255,120,60,.5);
+    transition: .15s;
+    animation: pulse .8s infinite alternate;
+}
+.buzz-btn:hover:not(:disabled) { filter: brightness(1.12); }
+.buzz-btn:disabled { background: rgba(120,140,180,.3); box-shadow: none; cursor: not-allowed; animation: none; color: rgba(255,255,255,.5); }
+
+/* 结局画面 */
+.game-over {
+    position: absolute; inset: 0; z-index: 20;
+    background: rgba(5,10,26,.78);
+    backdrop-filter: blur(6px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    animation: fadeUp .5s ease;
+    text-align: center;
+    padding: 20px;
+}
+.game-over img { height: 38vh; filter: drop-shadow(0 12px 30px rgba(0,0,0,.5)); }
+.game-over h2 { color: #fff; font-size: 30px; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+.game-over p { color: #ffd76a; font-size: 17px; font-weight: 600; }
+.game-over .end-quote { color: #cfe0ff; font-weight: 400; font-size: 15px; }
+.end-btns { display: flex; gap: 12px; margin-top: 10px; }
+.end-btns button {
+    padding: 12px 30px; border-radius: 12px;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    border: 1.5px solid rgba(255,255,255,.4);
+    background: rgba(255,255,255,.1); color: #fff;
+}
+.end-btns button:hover { background: rgba(255,255,255,.2); }
+.end-btns .primary { background: var(--accent); border-color: var(--accent); }
+.end-btns .primary:hover { background: var(--accent-2); }
+
+@media (max-width: 640px) {
+    .sprite { height: 34vh; bottom: 38vh; right: 2%; }
+    .dialogue { height: 52vh; padding: 14px 16px; }
+    .dlg-options { grid-template-columns: 1fr; }
+    .score-bar { width: 22vw; }
+    .timer { width: 46px; height: 46px; font-size: 19px; }
+}
+
 /* 滚动条 */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
@@ -686,6 +960,7 @@ body {
     <aside class="sidebar" id="sidebar">
         <div class="sb-logo" id="logoBtn" title="展开/收起侧边栏">🧑‍🎓</div>
         <div class="sb-item" id="newChatBtn"><span class="ico">✏️</span><span class="lbl">新的讲课</span></div>
+        <div class="sb-item" id="gameBtn"><span class="ico">⚔️</span><span class="lbl">答题挑战</span></div>
         <div class="sb-item" id="themeBtn"><span class="ico" id="themeIco">🌙</span><span class="lbl" id="themeLbl">夜间模式</span></div>
         <div class="sb-item" id="settingsBtn"><span class="ico">⚙️</span><span class="lbl">API 设置</span></div>
 
@@ -703,6 +978,7 @@ body {
 
     <!-- ========== 主区域 ========== -->
     <div class="main">
+        <div class="chat-view" id="chatView">
         <!-- 顶栏 -->
         <div class="topbar">
             <button class="menu-btn" id="menuBtn" title="打开侧边栏">☰</button>
@@ -775,6 +1051,93 @@ body {
                 <div class="composer-hint">Enter 发送 · Shift+Enter 换行 · ⏹ 结束讲课并生成评估 · AI学生的追问越尖锐，说明讲得越不清楚</div>
             </div>
         </div>
+        </div><!-- /chat-view -->
+
+        <!-- ========== 答题挑战（一站到底） ========== -->
+        <div class="game-view hidden" id="gameView">
+            <!-- 入口设置 -->
+            <div class="game-entry" id="gameEntry">
+                <div class="ge-card">
+                    <h2>⚔️ 一站到底 · 答题挑战</h2>
+                    <p class="ge-sub">你 VS 小雅（华中师范大学 · 高材生）· 抢答制 · 先得 13 分者胜</p>
+
+                    <div class="ge-section">
+                        <div class="ge-label">① 题目难度 <span>影响 AI 出题</span></div>
+                        <div class="ge-chips" id="qDiffChips">
+                            <button data-v="简单">🌱 简单</button>
+                            <button data-v="中等" class="on">📗 中等</button>
+                            <button data-v="困难">🎓 困难</button>
+                            <button data-v="地狱">🔬 地狱</button>
+                        </div>
+                    </div>
+
+                    <div class="ge-section">
+                        <div class="ge-label">② 小雅强度 <span>MASTER 等级</span></div>
+                        <div class="ge-chips" id="mChips">
+                            <button data-v="13">MASTER 13<small>不抢答</small></button>
+                            <button data-v="15" class="on">MASTER 15<small>4-5s抢答</small></button>
+                            <button data-v="15+">MASTER 15+<small>2-3s抢答</small></button>
+                            <button data-v="16">MASTER 16<small>2s内·零失误</small></button>
+                        </div>
+                    </div>
+
+                    <div class="ge-section">
+                        <div class="ge-label">③ 科目 <span>可多选，AI 现场出题</span></div>
+                        <div class="ge-chips" id="gSubjectChips"></div>
+                    </div>
+
+                    <div class="ge-section">
+                        <div class="ge-label">你的昵称</div>
+                        <input type="text" class="ge-name-input" id="playerNameInput" placeholder="玩家" maxlength="10">
+                    </div>
+
+                    <button class="ge-start" id="gameStartBtn">🚀 开始比赛</button>
+                    <div class="ge-back" id="gameBackBtn">← 返回讲课模式</div>
+                </div>
+            </div>
+
+            <!-- 赛场 -->
+            <div class="arena hidden" id="arena">
+                <div class="arena-top">
+                    <button class="arena-exit" id="arenaExit">← 退出比赛</button>
+                    <span class="arena-info" id="arenaInfo"></span>
+                </div>
+                <div class="score-row">
+                    <div class="score-side">
+                        <span class="sc-name" id="playerNameLbl">玩家</span>
+                        <div class="score-bar"><div class="fill" id="playerBar"></div></div>
+                        <span class="sc-num" id="playerScore">0</span>
+                    </div>
+                    <div class="timer" id="gameTimer">–</div>
+                    <div class="score-side right">
+                        <span class="sc-num" id="aiScore">0</span>
+                        <div class="score-bar"><div class="fill ai" id="aiBar"></div></div>
+                        <span class="sc-name">小雅</span>
+                    </div>
+                </div>
+
+                <img class="sprite" id="spriteImg" src="assets/normal.png" alt="小雅">
+
+                <div class="dialogue">
+                    <div class="dlg-speaker" id="dlgSpeaker">系统</div>
+                    <div class="dlg-text" id="dlgText"></div>
+                    <div class="dlg-options" id="dlgOptions"></div>
+                    <button class="buzz-btn hidden" id="buzzBtn">⚡ 抢答！</button>
+                </div>
+
+                <!-- 结局画面 -->
+                <div class="game-over hidden" id="gameOver">
+                    <img id="endSprite" src="assets/normal.png" alt="">
+                    <h2 id="endTitle"></h2>
+                    <p id="endScore"></p>
+                    <p class="end-quote" id="endQuote"></p>
+                    <div class="end-btns">
+                        <button class="primary" id="againBtn">🔄 再来一局</button>
+                        <button id="endBackBtn">返回设置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -791,9 +1154,24 @@ body {
             <div class="form-hint">仅保存在本地浏览器中，不会上传到任何服务器</div>
         </div>
         <div class="form-row">
+            <label>API 服务商（选择预设或自定义）</label>
+            <select id="apiPresetSelect" class="preset-select">
+                <option value="https://api.siliconflow.cn/v1/chat/completions">硅基流动 SiliconFlow（默认）</option>
+                <option value="https://api.openai.com/v1">ChatGPT（OpenAI）</option>
+                <option value="https://api.anthropic.com/v1">Anthropic Claude（可能支持，未实测）</option>
+                <option value="https://generativelanguage.googleapis.com/v1beta">Gemini（Google）</option>
+                <option value="https://api.deepseek.com">DeepSeek</option>
+                <option value="https://dashscope.aliyuncs.com/compatible-mode/v1">阿里云（Aliyun DashScope）</option>
+                <option value="https://open.bigmodel.cn/api/paas/v4">GLM（智谱）</option>
+                <option value="https://api.x.ai/v1">Grok（xAI）</option>
+                <option value="https://api.moonshot.cn/v1">KIMI（Moonshot）</option>
+                <option value="custom">自定义…</option>
+            </select>
+        </div>
+        <div class="form-row">
             <label>API URL</label>
             <input type="text" id="apiUrlInput" placeholder="https://api.siliconflow.cn/v1/chat/completions">
-            <div class="form-hint">OpenAI 兼容格式的聊天补全接口</div>
+            <div class="form-hint">OpenAI 兼容格式；填基础地址即可，会自动补上 /chat/completions</div>
         </div>
         <div class="form-row">
             <label>Model</label>
@@ -1106,6 +1484,21 @@ function sanitizeHeaderValue(v) {
         .replace(/[^\x20-\x7E]/g, ''); // 仅保留可打印 ASCII（ISO-8859-1 安全子集）
 }
 
+// 规范化 API URL：基础地址自动补全 /chat/completions
+function normalizeApiUrl(url) {
+    let u = (url || '').trim().replace(/\/+$/, '');
+    if (!u) return DEFAULT_API_URL;
+    if (!/\/chat\/completions$/.test(u)) u += '/chat/completions';
+    return u;
+}
+
+// 预设下拉联动
+$('apiPresetSelect').addEventListener('change', e => {
+    const v = e.target.value;
+    if (v !== 'custom') $('apiUrlInput').value = v;
+    $('apiUrlInput').focus();
+});
+
 $('saveSettingsBtn').addEventListener('click', () => {
     const keyRaw = $('apiKeyInput').value.trim();
     const key = sanitizeHeaderValue(keyRaw);
@@ -1115,7 +1508,7 @@ $('saveSettingsBtn').addEventListener('click', () => {
     }
     $('apiKeyInput').value = key;
     localStorage.setItem('ai_student_api_key', key);
-    localStorage.setItem('ai_student_api_url', sanitizeHeaderValue($('apiUrlInput').value) || DEFAULT_API_URL);
+    localStorage.setItem('ai_student_api_url', normalizeApiUrl(sanitizeHeaderValue($('apiUrlInput').value)) || DEFAULT_API_URL);
     localStorage.setItem('ai_student_model', sanitizeHeaderValue($('modelInput').value) || DEFAULT_MODEL);
     settingsModal.classList.remove('show');
 });
@@ -1157,6 +1550,8 @@ function renderSubjectGrid() {
     add.className = 'subject-card sc-add';
     add.innerHTML = `<div class="sc-emoji">➕</div><div class="sc-name">自定义</div>`;
     add.addEventListener('click', () => {
+        customSubjectContext = 'chat';
+        $('customSubjectSave').textContent = '✅ 保存并开讲';
         $('customSubjectName').value = '';
         $('customSubjectEmoji').value = '';
         $('customSubjectModal').classList.add('show');
@@ -1176,6 +1571,12 @@ $('customSubjectSave').addEventListener('click', () => {
         renderSubjectGrid();
     }
     $('customSubjectModal').classList.remove('show');
+    if (typeof customSubjectContext !== 'undefined' && customSubjectContext === 'game') {
+        customSubjectContext = 'chat';
+        G.subjects.add(name);
+        renderGameSubjects();
+        return;
+    }
     startSession({ name, emoji });
 });
 $('customSubjectCancel').addEventListener('click', () => $('customSubjectModal').classList.remove('show'));
@@ -1370,7 +1771,7 @@ async function callAI(messagesPayload, maxTokens = 2000) {
 
     // 请求头（尤其 Authorization）只允许 ISO-8859-1 字符，这里兜底再清洗一次
     const apiKey = sanitizeHeaderValue(s.apiKey);
-    const apiUrl = sanitizeHeaderValue(s.apiUrl);
+    const apiUrl = normalizeApiUrl(sanitizeHeaderValue(s.apiUrl));
     const model = sanitizeHeaderValue(s.model);
     if (!apiKey) throw new Error("API Key 含有非法字符（中文/全角符号等），请到 ⚙️ API 设置 中重新填写");
     if (apiKey !== s.apiKey) {
@@ -1697,8 +2098,415 @@ $('clearHistory').addEventListener('click', () => {
     renderHistoryList();
 });
 
+/* ==================== 答题挑战（一站到底） ==================== */
+let customSubjectContext = 'chat';
+const MASTER_CFG = {
+    '13':  { buzz: null,         wrongRate: 0.35 },  // 不主动抢答，只接手
+    '15':  { buzz: [4000, 5000], wrongRate: 0.22 },  // 4~5 秒抢答，偶尔故意答错
+    '15+': { buzz: [2000, 3000], wrongRate: 0.08 },  // 2~3 秒抢答，很少出错
+    '16':  { buzz: [500, 2000],  wrongRate: 0 },     // 2 秒内抢答，绝不出错
+};
+const G = {
+    qDiff: '中等', master: '15', subjects: new Set(), playerName: '玩家',
+    playerScore: 0, aiScore: 0, target: 13,
+    question: null, phase: 'entry', steal: false, timers: [],
+};
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function gTimer(fn, ms) { const t = setTimeout(fn, ms); G.timers.push(t); return t; }
+function clearGTimers() { G.timers.forEach(t => { clearTimeout(t); clearInterval(t); }); G.timers = []; }
+function setSprite(name) { $('spriteImg').src = 'assets/' + name + '.png'; }
+function setSpeaker(name, isXiaoya) {
+    const sp = $('dlgSpeaker');
+    sp.textContent = name;
+    sp.classList.toggle('xiaoya', !!isXiaoya);
+}
+let typeToken = 0;
+function typeText(text, speed = 26) {
+    const token = ++typeToken;
+    const el = $('dlgText');
+    el.textContent = '';
+    let i = 0;
+    return new Promise(res => {
+        (function step() {
+            if (token !== typeToken) return res();
+            if (i >= text.length) return res();
+            el.textContent += text[i++];
+            setTimeout(step, speed);
+        })();
+    });
+}
+function startAnswerTimer(sec, onEnd) {
+    let left = sec;
+    const tEl = $('gameTimer');
+    tEl.textContent = left;
+    tEl.classList.remove('urgent');
+    const iv = setInterval(() => {
+        left--;
+        tEl.textContent = Math.max(0, left);
+        if (left <= 5) tEl.classList.add('urgent');
+        if (left <= 0) { clearInterval(iv); onEnd && onEnd(); }
+    }, 1000);
+    G.timers.push(iv);
+}
+function renderScore() {
+    $('playerScore').textContent = G.playerScore;
+    $('aiScore').textContent = G.aiScore;
+    $('playerBar').style.width = (G.playerScore / G.target * 100) + '%';
+    $('aiBar').style.width = (G.aiScore / G.target * 100) + '%';
+}
+function addScore(who, delta) {
+    if (who === 'player') G.playerScore = Math.max(0, Math.min(G.target, G.playerScore + delta));
+    else G.aiScore = Math.max(0, Math.min(G.target, G.aiScore + delta));
+    renderScore();
+}
+
+/* ---- 出题（AI 实时生成，无题库） ---- */
+function parseQuestion(raw) {
+    let t = String(raw || '').trim().replace(/```(?:json)?/gi, '').trim();
+    const i = t.indexOf('{'), j = t.lastIndexOf('}');
+    if (i < 0 || j <= i) return null;
+    try {
+        const o = JSON.parse(t.slice(i, j + 1));
+        if (!o.question || !Array.isArray(o.options) || o.options.length !== 4 || !o.answer) return null;
+        o.answer = String(o.answer).trim().toUpperCase().charAt(0);
+        if (!'ABCD'.includes(o.answer)) return null;
+        o.options = o.options.map((op, idx) => {
+            const L = String.fromCharCode(65 + idx);
+            const s = String(op).trim();
+            return s.startsWith(L) ? s : `${L}. ${s.replace(/^[A-D][.、．]?\s*/, '')}`;
+        });
+        return o;
+    } catch (e) { return null; }
+}
+async function genQuestion() {
+    const subs = [...G.subjects];
+    const subj = pick(subs);
+    const msgs = [
+        { role: 'system', content: '你是专业的竞赛出题人，只输出 JSON，不要输出任何其他文字。' },
+        { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` },
+    ];
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const q = parseQuestion(await callAI(msgs, 700));
+        if (q) { q.subject = subj; return q; }
+    }
+    return null;
+}
+
+/* ---- 流程 ---- */
+async function nextQuestion() {
+    clearGTimers();
+    G.phase = 'loading';
+    G.steal = false;
+    $('dlgOptions').innerHTML = '';
+    $('buzzBtn').classList.add('hidden');
+    $('dlgText').classList.remove('question');
+    setSprite('normal');
+    setSpeaker('系统');
+    typeText('出题中……');
+    let q = null;
+    try { q = await genQuestion(); } catch (e) { q = null; }
+    if (!q) {
+        setSpeaker('系统');
+        typeText('出题失败，请检查 API 设置（Key / URL / 模型）。点击右上角「退出」返回设置。');
+        G.phase = 'error';
+        return;
+    }
+    G.question = q;
+    G.phase = 'showing';
+    setSpeaker(`【${q.subject}】`);
+    $('dlgText').classList.add('question');
+    await typeText(q.question, 34);
+    renderOptions();
+    openBuzz();
+}
+function openBuzz() {
+    G.phase = 'buzz';
+    $('buzzBtn').classList.remove('hidden');
+    startAnswerTimer(30, () => {
+        if (G.phase === 'buzz' || G.phase === 'playerAnswer') {
+            clearGTimers();
+            $('buzzBtn').classList.add('hidden');
+            enableOptions(false);
+            $('dlgText').classList.remove('question');
+            setSpeaker('系统');
+            typeText('时间到！本题结束，进入下一题。');
+            gTimer(nextQuestion, 2400);
+        }
+    });
+    const cfg = MASTER_CFG[G.master];
+    if (cfg.buzz) {
+        const delay = cfg.buzz[0] + Math.random() * (cfg.buzz[1] - cfg.buzz[0]);
+        gTimer(() => { if (G.phase === 'buzz') aiBuzz(); }, delay);
+    }
+}
+function renderOptions() {
+    const box = $('dlgOptions');
+    box.innerHTML = '';
+    G.question.options.forEach((opt, i) => {
+        const b = document.createElement('button');
+        b.className = 'dlg-opt';
+        b.dataset.letter = String.fromCharCode(65 + i);
+        b.textContent = opt;
+        b.disabled = true;
+        b.addEventListener('click', () => playerAnswer(b.dataset.letter));
+        box.appendChild(b);
+    });
+}
+function enableOptions(on) { [...$('dlgOptions').children].forEach(b => b.disabled = !on); }
+function markOptions(chosen) {
+    [...$('dlgOptions').children].forEach(b => {
+        if (b.dataset.letter === G.question.answer) b.classList.add('correct');
+        else if (b.dataset.letter === chosen) b.classList.add('wrong');
+        b.disabled = true;
+    });
+}
+
+/* ---- 玩家抢答与作答 ---- */
+function playerBuzz() {
+    if (G.phase !== 'buzz') return;
+    G.phase = 'playerAnswer';
+    G.steal = false;
+    $('buzzBtn').classList.add('hidden');
+    setSpeaker(G.playerName);
+    typeText('我抢！这题让我来！');
+    enableOptions(true);
+}
+function playerAnswer(letter) {
+    if (G.phase !== 'playerAnswer') return;
+    G.phase = 'judging';
+    clearGTimers();
+    const correct = letter === G.question.answer;
+    markOptions(letter);
+    $('dlgText').classList.remove('question');
+    if (correct) {
+        addScore('player', +1);
+        setSprite('lose'); // 小雅不甘 2 秒
+        setSpeaker('小雅', true);
+        typeText(pick(['唔……算你厉害！', '哼，这题只是让你先下一城！', '可恶……下次一定是我抢到！']));
+        gTimer(() => { if (!checkEnd()) { setSprite('normal'); nextQuestion(); } }, 2200);
+    } else {
+        if (!G.steal) addScore('player', -1);
+        setSprite('win'); // 小雅得意 2 秒
+        setSpeaker('小雅', true);
+        typeText(pick(['答错啦！哼哼，机会归我了～', '就这？看本小姐给你示范一下！']));
+        gTimer(aiStealAnswer, 2000);
+    }
+}
+
+/* ---- 小雅抢答与作答 ---- */
+function aiBuzz() {
+    if (G.phase !== 'buzz') return;
+    G.phase = 'aiAnswer';
+    clearGTimers();
+    $('buzzBtn').classList.add('hidden');
+    setSprite('handup'); // 举手
+    setSpeaker('系统');
+    typeText('小雅抢答成功！');
+    gTimer(() => { // 举手 2 秒内还在思考 → 思考表情
+        if (G.phase === 'aiAnswer') { setSprite('thinking'); setSpeaker('小雅', true); typeText('（思考中……）'); }
+    }, 2000);
+    aiAnswer(false);
+}
+function aiStealAnswer() { // 玩家答错，题目交给小雅
+    if (G.phase === 'over') return;
+    G.phase = 'aiAnswer';
+    G.steal = true;
+    setSprite('confused'); // 困惑
+    setSpeaker('小雅', true);
+    typeText('嗯？轮到我了吗……让我看看这题。');
+    gTimer(() => { if (G.phase === 'aiAnswer') setSprite('thinking'); }, 2000); // 2 秒后还在思考
+    aiAnswer(true);
+}
+function pickWrong(correctLetter) {
+    const others = ['A', 'B', 'C', 'D'].filter(l => l !== correctLetter);
+    return pick(others);
+}
+async function xiaoyaSpeak(q, letter, willCorrect) {
+    const sys = '你是小雅，华中师范大学在读高材生，正在和玩家进行抢答对战。性格：轻敌、傲娇、不服输，但答题时很认真。口癖："哼"、"就这？"、"本小姐"。说话像真实的大学生，简短、有性格，绝不像机器人。';
+    const usr = willCorrect
+        ? `题目：${q.question}\n选项：${q.options.join('；')}\n你抢答成功，正确答案是 ${letter}。输出格式：第一行只写"我选${letter}"，第二行写一句简短台词（40字内，傲娇自信，可带一句理由）。`
+        : `题目：${q.question}\n选项：${q.options.join('；')}\n你抢答成功，但这次你会答错——你选择 ${letter}，并且表现得自信满满、完全不知道自己错了。输出格式：第一行只写"我选${letter}"，第二行写一句简短台词（40字内）。`;
+    const raw = await callAI([{ role: 'system', content: sys }, { role: 'user', content: usr }], 160);
+    return String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+}
+async function aiAnswer(isSteal) {
+    const q = G.question;
+    const cfg = MASTER_CFG[G.master];
+    const willCorrect = Math.random() >= cfg.wrongRate;
+    const letter = willCorrect ? q.answer : pickWrong(q.answer);
+    let quip = '';
+    try { quip = await xiaoyaSpeak(q, letter, willCorrect); } catch (e) { quip = ''; }
+    if (G.phase !== 'aiAnswer') return;
+    if (!quip) quip = `我选${letter}。` + (willCorrect ? pick(['哼，这种题难不倒本小姐。', '就这？太简单啦！']) : pick(['肯定是这个，稳了！', '这题我熟，选它没错！']));
+    setSprite('normal');
+    setSpeaker('小雅', true);
+    await typeText(quip);
+    if (G.phase !== 'aiAnswer') return;
+    gTimer(() => resolveAiAnswer(letter, willCorrect, isSteal), 1200);
+}
+function resolveAiAnswer(letter, correct, isSteal) {
+    if (G.phase !== 'aiAnswer') return;
+    markOptions(letter);
+    const q = G.question;
+    if (correct) {
+        addScore('ai', +1);
+        setSprite('normal');
+        setSpeaker('系统');
+        typeText(`小雅回答正确！正确答案是 ${q.answer}。${q.explanation || ''}`);
+        if (!checkEnd()) gTimer(nextQuestion, 3000);
+    } else {
+        setSprite('surprised'); // 答错后的慌张
+        setSpeaker('小雅', true);
+        typeText(pick(['欸？！怎、怎么会错……', '不可能！我明明算过的……！']));
+        if (isSteal) { // 接手答错不扣分，直接下一题
+            gTimer(() => {
+                setSpeaker('系统');
+                typeText(`正确答案是 ${q.answer}。${q.explanation || ''}`);
+                gTimer(nextQuestion, 3000);
+            }, 2000);
+        } else {
+            addScore('ai', -1);
+            gTimer(playerStealChance, 2200); // 机会交给玩家
+        }
+    }
+}
+function playerStealChance() { // 小雅答错，机会交给你，答错不扣分
+    if (G.phase === 'over') return;
+    G.phase = 'playerAnswer';
+    G.steal = true;
+    setSprite('normal');
+    setSpeaker('系统');
+    typeText('小雅答错了！机会交给你，答错不扣分。请选择答案：');
+    enableOptions(true);
+    startAnswerTimer(30, () => {
+        if (G.phase === 'playerAnswer') {
+            clearGTimers();
+            enableOptions(false);
+            setSpeaker('系统');
+            typeText('时间到！本题结束，进入下一题。');
+            gTimer(nextQuestion, 2400);
+        }
+    });
+}
+
+/* ---- 胜负 ---- */
+function checkEnd() {
+    if (G.playerScore >= G.target || G.aiScore >= G.target) {
+        endGame(G.playerScore >= G.target);
+        return true;
+    }
+    return false;
+}
+function endGame(playerWon) {
+    G.phase = 'over';
+    clearGTimers();
+    $('gameOver').classList.remove('hidden');
+    $('endSprite').src = 'assets/' + (playerWon ? 'lose' : 'win') + '.png';
+    $('endTitle').textContent = playerWon ? '🏆 你赢了！' : '💫 小雅获胜';
+    $('endScore').textContent = `${G.playerName}  ${G.playerScore} : ${G.aiScore}  小雅`;
+    $('endQuote').textContent = playerWon
+        ? '「不、不甘心……下次本小姐一定不会输给你！」'
+        : '「哼，看到了吗？这就是华中师大高材生的实力！」';
+}
+
+/* ---- 入口与事件绑定 ---- */
+function renderGameSubjects() {
+    const wrap = $('gSubjectChips');
+    wrap.innerHTML = '';
+    [...SUBJECTS, ...getCustomSubjects()].forEach(s => {
+        const b = document.createElement('button');
+        b.className = 'ge-chip' + (G.subjects.has(s.name) ? ' on' : '');
+        b.textContent = `${s.emoji || '📚'} ${s.name}`;
+        b.addEventListener('click', () => {
+            if (G.subjects.has(s.name)) G.subjects.delete(s.name); else G.subjects.add(s.name);
+            b.classList.toggle('on');
+        });
+        wrap.appendChild(b);
+    });
+    const add = document.createElement('button');
+    add.className = 'ge-chip';
+    add.textContent = '➕ 自定义';
+    add.addEventListener('click', () => {
+        customSubjectContext = 'game';
+        $('customSubjectSave').textContent = '✅ 保存科目';
+        $('customSubjectName').value = '';
+        $('customSubjectEmoji').value = '';
+        $('customSubjectModal').classList.add('show');
+        setTimeout(() => $('customSubjectName').focus(), 50);
+    });
+    wrap.appendChild(add);
+}
+function startGame() {
+    if (!G.subjects.size) { alert('请至少选择一个科目'); return; }
+    if (!loadSettings().apiKey) {
+        alert('答题挑战需要 AI 实时出题，请先在侧边栏「API 设置」中填写 Key');
+        settingsModal.classList.add('show');
+        return;
+    }
+    G.playerName = $('playerNameInput').value.trim() || '玩家';
+    localStorage.setItem('playerName', G.playerName);
+    G.playerScore = 0; G.aiScore = 0; renderScore();
+    $('playerNameLbl').textContent = G.playerName;
+    $('arenaInfo').textContent = `题目难度：${G.qDiff} · 对手强度：MASTER ${G.master} · 先到 ${G.target} 分获胜`;
+    $('gameEntry').classList.add('hidden');
+    $('gameOver').classList.add('hidden');
+    $('arena').classList.remove('hidden');
+    setSprite('normal');
+    nextQuestion();
+}
+function bindChipGroup(id, cb) {
+    document.querySelectorAll(`#${id} button`).forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll(`#${id} button`).forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        cb(b.dataset.v);
+    }));
+}
+bindChipGroup('qDiffChips', v => G.qDiff = v);
+bindChipGroup('mChips', v => G.master = v);
+$('gameStartBtn').addEventListener('click', startGame);
+$('buzzBtn').addEventListener('click', playerBuzz);
+$('againBtn').addEventListener('click', () => { $('gameOver').classList.add('hidden'); startGame(); });
+$('endBackBtn').addEventListener('click', () => {
+    $('gameOver').classList.add('hidden');
+    $('arena').classList.add('hidden');
+    $('gameEntry').classList.remove('hidden');
+});
+$('arenaExit').addEventListener('click', () => {
+    clearGTimers();
+    G.phase = 'entry';
+    $('arena').classList.add('hidden');
+    $('gameOver').classList.add('hidden');
+    $('gameEntry').classList.remove('hidden');
+});
+$('gameBtn').addEventListener('click', () => {
+    closeSidebar();
+    $('chatView').classList.add('hidden');
+    $('gameView').classList.remove('hidden');
+    $('gameEntry').classList.remove('hidden');
+    $('arena').classList.add('hidden');
+    $('gameOver').classList.add('hidden');
+    clearGTimers();
+    G.phase = 'entry';
+    renderGameSubjects();
+    $('playerNameInput').value = localStorage.getItem('playerName') || '';
+});
+$('gameBackBtn').addEventListener('click', () => {
+    $('gameView').classList.add('hidden');
+    $('chatView').classList.remove('hidden');
+});
+
 /* ==================== 初始化 ==================== */
 renderHistoryList();
+const s = loadSettings();
+if (!s.apiKey) {
+    setTimeout(() => {
+        settingsModal.classList.add('show');
+    }, 600);
+}
+</script>
+</body>
+</html>
+erHistoryList();
 const s = loadSettings();
 if (!s.apiKey) {
     setTimeout(() => {
