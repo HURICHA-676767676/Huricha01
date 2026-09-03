@@ -2253,10 +2253,18 @@ function gTimer(fn, ms) { const t = setTimeout(fn, ms); G.timers.push(t); return
 function clearGTimers() { G.timers.forEach(t => { clearTimeout(t); clearInterval(t); }); G.timers = []; }
 function setSprite(name) {
     const el = $('spriteImg');
-    el.src = 'assets/' + name + '.png';
-    el.classList.remove('bob');
-    void el.offsetWidth;
-    el.classList.add('bob');
+     const target = 'assets/' + name + '.png';
+    const playBob = () => {
+        el.classList.remove('bob');
+        void el.offsetWidth;
+        el.classList.add('bob');
+    };
+    if (el.getAttribute('src') === target) {
+        playBob();
+        return;
+    }
+    el.onload = playBob;
+    el.src = target;
 }
 function setSpeaker(name, isXiaoya) {
     const sp = $('dlgSpeaker');
