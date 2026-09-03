@@ -2336,7 +2336,8 @@ async function genQuestion() {
     
     const msgs = [
         { role: 'system', content: '你是专业的竞赛出题人，只输出 JSON，不要输出任何其他文字。' },
-       { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。${historyBlock}\n\n严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` },
+       { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。${historyBlock}\n\n严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` }
+];
     for (let attempt = 0; attempt < 2; attempt++) {
         const q = parseQuestion(await callAI(msgs, 700));
         
