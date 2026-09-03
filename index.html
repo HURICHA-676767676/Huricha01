@@ -697,6 +697,9 @@ body {
 .ge-section { margin-bottom: 18px; }
 .ge-label { font-size: 13.5px; font-weight: 700; margin-bottom: 9px; display: flex; align-items: baseline; gap: 8px; }
 .ge-label span { font-size: 11.5px; color: var(--text-3); font-weight: 400; }
+.ge-toggles { display: flex; flex-wrap: wrap; gap: 10px; }
+.ge-toggles .preview-toggle { padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--input-bg); }
+.ge-toggles .preview-toggle.on { border-color: var(--accent); background: var(--accent-soft); }
 .ge-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .ge-chips button {
     border: 1.5px solid var(--border);
@@ -1123,8 +1126,8 @@ body {
             <div class="game-entry" id="gameEntry">
                 <div class="ge-card">
                     <h2>⚔️ 一站到底 · 答题挑战</h2>
-                    <p class="ge-sub">你 VS 小雅（华中师范大学 · 高材生）· 抢答制 · 先得 13 分者胜</p>
-
+                   <p class="ge-sub">你 VS 小雅（神秘学霸）· 抢答制 · 先得 13 分者胜</p>
+                    
                     <div class="ge-section">
                         <div class="ge-label">① 题目难度 <span>影响 AI 出题</span></div>
                         <div class="ge-chips" id="qDiffChips">
@@ -1151,6 +1154,20 @@ body {
                     </div>
 
                     <div class="ge-section">
+                     <div class="ge-label">④ AI 能力 <span>默认关闭，出题更快</span></div>
+    <div class="ge-toggles">
+        <div class="preview-toggle" id="gThinkToggle" title="开启后：挑战模式出题/小雅台词会进行深度思考（更慢）">
+            <span class="pt-label">🧠 <span class="txt">思考模式</span></span>
+            <div class="switch"></div>
+        </div>
+        <div class="preview-toggle" id="gWebToggle" title="开启后：挑战模式 AI 可联网搜索出题（需服务商支持联网）">
+            <span class="pt-label">🌐 <span class="txt">联网模式</span></span>
+            <div class="switch"></div>
+        </div>
+    </div>
+</div>
+
+<div class="ge-section">
                         <div class="ge-label">你的昵称</div>
                         <input type="text" class="ge-name-input" id="playerNameInput" placeholder="玩家" maxlength="10">
                     </div>
@@ -1518,7 +1535,7 @@ async function generateChallengeTopics() {
 困难：课题名
 地狱：课题名` },
             { role: 'user', content: `学科：${subName}。随机种子：${Math.random().toString(36).slice(2)}${Date.now()}` }
-        ], 300);
+       ], 300, { noThink: true });
 
         const topics = CHALLENGE_LEVELS.map(lv => {
             const m = raw.match(new RegExp(lv.key + '[:：]\\s*(.+)'));
@@ -1887,7 +1904,7 @@ function viewImg(src) {
 $('imgViewer').addEventListener('click', () => $('imgViewer').classList.remove('show'));
 
 /* ==================== API 调用 ==================== */
-async function callAI(messagesPayload, maxTokens = 2000) {
+async function callAI(messagesPayload, maxTokens = 2000, opts = {}) {
     const s = loadSettings();
     if (!s.apiKey) throw new Error("请先在 ⚙️ API 设置 中填写 API Key");
 
@@ -1903,13 +1920,16 @@ async function callAI(messagesPayload, maxTokens = 2000) {
 
    // 深度思考：注入全局思考指令 + 请求参数
 const messages = messagesPayload.map(m => ({ ...m }));
-const directive = thinkingDirective();
+const thinkOn = opts.noThink ? false : (opts.think ? true : state.deepThink);
+const directive = opts.noThink
+    ? '【思考控制指令】本轮严禁任何内部推理、思考或分析过程，直接输出最终结果，禁止输出任何思考内容、推理步骤或中间过程。\n\n'
+    : (opts.think ? '' : thinkingDirective());
 if (directive && messages[0] && messages[0].role === 'system') {
     messages[0] = { role: 'system', content: directive + messages[0].content };
 }
 
 const bodyObj = { model, messages, max_tokens: maxTokens, temperature: 0.75 };
-if (state.deepThink) {
+if (thinkOn) {
     // 开启深度思考：告知服务商启用推理，并按深度指定推理强度
     bodyObj.enable_thinking = true;
     bodyObj.reasoning_effort = state.thinkDepth;
@@ -1917,7 +1937,8 @@ if (state.deepThink) {
     // 关闭深度思考：全局取消思考，直接出字
     bodyObj.enable_thinking = false;
 }
-    if (state.webSearch) {
+   const webOn = opts.web !== undefined ? opts.web : state.webSearch;
+    if (webOn) {
         // 联网搜索：兼容主流 OpenAI 兼容服务商的写法（不支持的厂商会忽略或报错）
         bodyObj.web_search_options = { search_context_size: 'medium' };
         bodyObj.enable_search = true;
@@ -2114,7 +2135,7 @@ ${history}
         const report = await callAI([
             { role: 'system', content: evalPrompt },
             { role: 'user', content: '请生成评估报告。' }
-        ], 800);
+     ], 800, { noThink: true });
 
         card.querySelector('.eval-text').textContent = report;
         state.evalReport = report;
@@ -2247,6 +2268,7 @@ const G = {
     qDiff: '中等', master: '15', subjects: new Set(), playerName: '玩家',
     playerScore: 0, aiScore: 0, target: 13,
     question: null, phase: 'entry', steal: false, timers: [], asked: [],
+     think: false, web: false,
 };
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function gTimer(fn, ms) { const t = setTimeout(fn, ms); G.timers.push(t); return t; }
@@ -2347,7 +2369,7 @@ async function genQuestion() {
        { role: 'user', content: `请围绕学科【${subj}】出一道「${G.qDiff}」难度的单项选择题（4 个选项）。难度参照：简单=小学水平，中等=中学水平，困难=大学水平，地狱=前沿科学水平。要求题目严谨、选项有迷惑性。${historyBlock}\n\n严格输出 JSON：{"question":"题干","options":["A. ..","B. ..","C. ..","D. .."],"answer":"A","explanation":"一句话解析"}` }
 ];
     for (let attempt = 0; attempt < 2; attempt++) {
-        const q = parseQuestion(await callAI(msgs, 700));
+       const q = parseQuestion(await callAI(msgs, 700, { noThink: !G.think, web: G.web }));
         
         if (q) {
             q.subject = subj;
@@ -2527,7 +2549,7 @@ async function xiaoyaSpeak(q, letter, willCorrect) {
     const usr = willCorrect
         ? `题目：${q.question}\n选项：${q.options.join('；')}\n你抢答成功，正确答案是 ${letter}。输出格式：第一行只写"我选${letter}"，第二行写一句简短台词（40字内，傲娇自信，可带一句理由）。`
         : `题目：${q.question}\n选项：${q.options.join('；')}\n你抢答成功，但这次你会答错——你选择 ${letter}，并且表现得自信满满、完全不知道自己错了。输出格式：第一行只写"我选${letter}"，第二行写一句简短台词（40字内）。`;
-    const raw = await callAI([{ role: 'system', content: sys }, { role: 'user', content: usr }], 160);
+     const raw = await callAI([{ role: 'system', content: sys }, { role: 'user', content: usr }], 160, { noThink: !G.think });
     return String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 90);
 }
 async function aiAnswer(isSteal) {
@@ -2612,7 +2634,7 @@ function endGame(playerWon) {
     $('endScore').textContent = `${G.playerName}  ${G.playerScore} : ${G.aiScore}  小雅`;
     $('endQuote').textContent = playerWon
         ? '「不、不甘心……下次本小姐一定不会输给你！」'
-        : '「哼，看到了吗？这就是华中师大高材生的实力！」';
+        : '「哼，看到了吗？这就是本小姐的实力！」';
 }
 
 /* ---- 入口与事件绑定 ---- */
@@ -2670,6 +2692,15 @@ function bindChipGroup(id, cb) {
 }
 bindChipGroup('qDiffChips', v => G.qDiff = v);
 bindChipGroup('mChips', v => G.master = v);
+// 挑战模式专属：思考 / 联网开关（默认关闭）
+function bindGameToggle(id, key) {
+    $(id).addEventListener('click', () => {
+        G[key] = !G[key];
+        $(id).classList.toggle('on', G[key]);
+    });
+}
+bindGameToggle('gThinkToggle', 'think');
+bindGameToggle('gWebToggle', 'web');
 $('gameStartBtn').addEventListener('click', startGame);
 $('buzzBtn').addEventListener('click', playerBuzz);
 $('nextBtn').addEventListener('click', nextQuestion);
