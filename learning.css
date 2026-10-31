@@ -1,0 +1,27 @@
+[hidden] { display: none !important; }
+.learning-panel { margin: 10px auto; width: min(900px, calc(100% - 24px)); border: 1px solid var(--border); border-radius: 12px; background: var(--panel-bg); font-size: 13px; flex-shrink: 0; }
+.learning-panel > summary { padding: 12px 14px; cursor: pointer; font-weight: 600; }
+.learning-content { padding: 0 14px 14px; max-height: 36vh; overflow: auto; }
+.learning-note { color: var(--text-2); line-height: 1.7; margin: 6px 0 10px; }
+.learning-goal { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 9px 0; border-top: 1px solid var(--border); }
+.learning-goal label { flex: 1; min-width: 160px; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.learning-panel button { border: 1px solid var(--border); background: var(--accent-soft); color: var(--text); padding: 7px 10px; border-radius: 7px; cursor: pointer; font: inherit; }
+.learning-panel button:disabled { opacity: .5; cursor: default; }
+.learning-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 0; }
+.learning-fields label { display: flex; flex-direction: column; gap: 5px; }
+.learning-fields input, .learning-fields textarea { width: 100%; padding: 8px; font: inherit; color: var(--text); background: var(--input-bg); border: 1px solid var(--border); border-radius: 7px; }
+.learning-fields textarea { min-height: 65px; resize: vertical; }
+.learning-result { margin-top: 8px; border-left: 3px solid var(--accent); padding: 8px 10px; background: var(--accent-soft); overflow-wrap: anywhere; }
+.learning-result summary { cursor: pointer; }
+.learning-result p { line-height: 1.7; margin-top: 8px; }
+.learning-error { color: var(--danger); margin-top: 6px; }
+.learning-actions { margin-top: 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.exam-workspace { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.exam-workspace h3 { font-size: 14px; }
+.exam-comparison { margin: 12px 0; line-height: 1.7; font-weight: 600; }
+.exam-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.exam-table th, .exam-table td { text-align: left; padding: 7px; border-bottom: 1px solid var(--border); }
+.exam-model-settings { margin: 12px 0; }
+.exam-model-settings summary { cursor: pointer; margin-bottom: 8px; }
+.modal { max-height: 88vh; overflow-y: auto; }
+@media (max-width: 600px) { .learning-fields { grid-template-columns: 1fr; } .learning-content { max-height: 33vh; } .learning-panel { margin: 6px auto; } }
