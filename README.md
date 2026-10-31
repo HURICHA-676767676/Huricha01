@@ -6,7 +6,13 @@
 
 解压后打开 index.html。也可以在本目录运行 python -m http.server 8000，通过 http://localhost:8000 打开。调用模型需要填写自己的 API Key、OpenAI 兼容地址和模型 ID，且服务商需要允许浏览器跨域调用。
 
-更新 GitHub Pages 时，请一起上传 index.html、learning.js、learning.css、quiz.js、studio.js、studio.css 与 assets 文件夹，保持相对位置。
+更新 GitHub Pages 时，请一起上传 index.html、learning.js、learning.css、quiz.js、studio.js、studio.css、sprites.js 与 assets 文件夹，保持相对位置。
+
+## 小雅的挑战表情
+
+平时用 normal，抢到或接过作答机会用 handup，只有等待模型回答时才切到 thinking；开始说答案后不再被思考定时器覆盖。小雅答对用 win，答错用 surprise，玩家答对或接手作答时小雅用 confused；lose 留给整局失利。双方都答错后本题结束，不反复交还机会。
+
+立绘在开始挑战时预加载，加载完成后才切换；同图不重复跳动，旧图片请求或上一题的模型回复不会覆盖当前状态。图片加载失败时回退到 normal，若也不可用则保留上一张图。运行 `node tests/game-sprites.test.cjs` 检查资源名、加载竞争、快慢响应、选择／主观题两条路径和回合切换。本测试使用模拟响应，不调用付费模型。
 
 ## 互动备课台（2026-10-31）
 
