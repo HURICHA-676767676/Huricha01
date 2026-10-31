@@ -61,6 +61,7 @@ function learningEvidence() {
     });
 }
 function renderLearningPanel() {
+    if (typeof renderStudioProgress === 'function') renderStudioProgress();
     const panel = $('learningPanel');
     panel.hidden = !state.subject;
     if (!state.subject) return;
@@ -189,3 +190,4 @@ $('exportLessonBtn').addEventListener('click', () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 updateUsageDisplay();
+

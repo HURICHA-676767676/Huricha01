@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI学生 · 讲课与理解检验</title>
 <link rel="stylesheet" href="learning.css">
+<link rel="stylesheet" href="studio.css">
 <style>
 /* ================= 主题变量 ================= */
 :root {
@@ -1065,6 +1066,7 @@ body {
             <button class="menu-btn" id="menuBtn" title="打开侧边栏">☰</button>
             <div class="tb-title">给 AI 学生讲课 <span class="tb-subject" id="topSubject" style="display:none;"></span></div>
             <div class="tb-right">
+                <button type="button" class="studio-open" id="studioOpen">互动备课</button>
                 <select class="diff-select" id="diffSelect" title="AI学生难度人格"></select>
                 <div class="preview-toggle" id="webToggle" title="开启后：AI学生可联网搜索核对你讲的内容（需 API 服务商支持联网）">
                     <span class="pt-label">🌐 <span class="txt">联网模式</span></span>
@@ -1086,6 +1088,7 @@ body {
         <details class="learning-panel" id="learningPanel" hidden open>
             <summary id="learningSummary">学习记录</summary>
             <div class="learning-content">
+                <nav id="studioRoute" class="studio-route" aria-label="本课教学路线"></nav>
                 <p class="learning-note">设置知识点 → 组卷并前测 → 给 AI 学生讲解 → 课后五题检验。覆盖概念、操作、纠错、迁移与边界；题目与评分标准分开传递。首次组卷前测共 3 次调用，课后检验 2 次。结果是模拟检验，不代表真人学习效果。</p>
                 <div id="learningGoals"></div>
                 <details id="goalForm" open>
@@ -1110,7 +1113,11 @@ body {
                 <!-- 欢迎页 -->
                 <div class="welcome" id="welcome">
                     <h2>👋 今天想讲哪一科？</h2>
-                    <p>先选好学生的「难度人格」，再选学科开讲。它会像真实学生一样听课、困惑、追问。</p>
+                    <p>你来当老师，用讲解、实验和追问检验 AI 学生的作答。先选人格，再自选学科，或从下面的模板开始。</p>
+                    <section class="studio-start" aria-labelledby="studioStartTitle">
+                        <div class="studio-section-head"><h3 id="studioStartTitle">从一个小实验开讲</h3><span>模板与白板免费离线使用</span></div>
+                        <div id="studioTemplates" class="studio-template-grid"></div>
+                    </section>
 
                     <div class="wtabs">
                         <button class="wtab active" id="tabFree">🎯 自选学科</button>
@@ -1358,6 +1365,7 @@ body {
 
 <script src="learning.js" defer></script>
 <script src="quiz.js" defer></script>
+<script src="studio.js" defer></script>
 <script>
 /* ==================== 配置 ==================== */
 const DEFAULT_API_URL = "https://api.siliconflow.cn/v1/chat/completions";
@@ -3002,3 +3010,4 @@ if (!s.apiKey) {
 </script>
 </body>
 </html>
+
