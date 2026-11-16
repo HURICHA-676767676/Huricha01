@@ -2697,8 +2697,10 @@ async function judgeAnswer(q, text) {
         { role: 'system', content: '你是阅卷老师。判断学生答案是否与参考答案一致（主观题意思对即可，填空题需基本一致）。只输出一个字：对 或 错。' },
         { role: 'user', content: `题型：${q.type}\n题目：${q.question}\n参考答案：${q.answer}\n学生答案：${text}` }
     ], 40, { noThink: true });
-    const r = String(raw || '').trim();
-    return r.startsWith('对') || r.includes('正确');
+    const r = String(raw || '').trim().replace(/[。.!！]+$/u, '').trim();
+    if (['对', '正确'].includes(r)) return true;
+    if (['错', '错误', '不对', '不正确'].includes(r)) return false;
+    throw new Error('判分结果不明确，本次不计分。');
 }
 async function playerAnswerEx() {
     if (G.phase !== 'playerAnswer') return;
@@ -2710,7 +2712,28 @@ async function playerAnswerEx() {
     hideExAnswer();
     setSpeaker(G.playerName);
     typeText('我的答案：' + text);
-    const correct = await judgeAnswer(G.question, text);
+    let correct;
+    try {
+        correct = await judgeAnswer(G.question, text);
+    } catch {
+        if (G.phase !== 'judging' || G.roundId !== roundId) return;
+        // 未取得有效判分，不改变分数；保留答案供玩家手动重试。
+        G.phase = 'playerAnswer';
+        showExAnswer();
+        $('exAnswerInput').value = text;
+        setSprite('normal');
+        setSpeaker('系统');
+        typeText('判分未完成，本次未计分。原答案已保留，可在 30 秒内修改并重新提交（会再次调用模型），或退出挑战。');
+        startAnswerTimer(30, () => {
+            if (G.roundId !== roundId || G.phase !== 'playerAnswer') return;
+            clearGTimers(); hideExAnswer();
+            G.phase = 'timeout';
+            setSpeaker('系统');
+            typeText('时间到！本题结束。');
+            revealExplanation(); finishRound();
+        });
+        return;
+    }
     if (G.phase !== 'judging' || G.roundId !== roundId) return;
     if (correct) {
         addScore('player', +1);
